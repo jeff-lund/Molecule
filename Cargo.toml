@@ -1,0 +1,6 @@
+[package]
+name = "Molecule"
+version = "0.1.0"
+authors = ["jeff-lund <jdl3@pdx.edu>"]
+
+[dependencies]
