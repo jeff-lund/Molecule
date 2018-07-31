@@ -1,36 +1,18 @@
 // Copyright (c) 2018 Jeff Lund
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 #![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
-#[allow(dead_code)]
-enum Atom {
-    Hydrogen,
-    DoubleBond,
-    TripleBond,
-    CH3,
-    CH2,
-    CH,
-    CarboxylicAcid,
-    Ester,
-    Aldehyde,
-    Ketone,
-    Amide,
-    Aromatic,
-    Alkene,
-    Alkyne,
-    CO,
-    CN,
-    CCl,
-    CBr,
-}
-#[allow(dead_code)]
-struct Molecule {
-    kind: Atom,
-    bonds: Vec<i32>,
-}
+mod atoms;
+use atoms::Atom;
+use atoms::Molecule;
+
 // parsing elemental analysis
 // breaks on single elements in formule i.e (CH4), needs error checking for valid elements
 fn parse_chemical_formula(formula: &str) -> HashMap<String, i32> {
@@ -82,6 +64,89 @@ fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
     }
     ihd/2
 }
+#[test]
+//add tests with halogens
+fn test_ihd() {
+    let caffeine: HashMap<String, i32> = [("C".to_string(), 8), ("H".to_string(), 10),
+        ("N".to_string(), 4), ("O".to_string(), 2)].iter().cloned().collect();
+    assert_eq!(compute_ihd(&caffeine), 6);
+    let acetic_acid: HashMap<String, i32> = [("C".to_string(), 2), ("H".to_string(), 4),
+        ("O".to_string(), 2)].iter().cloned().collect();
+    assert_eq!(compute_ihd(&acetic_acid), 1);
+}
+
+fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>, ihd: i32) -> Vec<Molecule> {
+    let mut build: Vec<Molecule> = Vec::new();
+    // By Index [C, H, O, N, Cl, Br]
+    let mut atoms_used: Vec<i32> = vec![0,0,0,0,0,0];
+
+    let mut N_avail: i32 = match elemental_analysis.get("N") {
+        Some(n) => *n as i32,
+        None => 0,
+    };
+    let mut O_avail: i32 = match elemental_analysis.get("O") {
+        Some(n) => *n as i32,
+        None => 0,
+    };
+    for shift in chemical_peaks.iter() {
+        if *shift <= 15 {
+            build.push(Molecule::CH3());
+            atoms_used[0] += 1;
+            atoms_used[1] += 3;
+        } else if *shift <= 25 {
+            build.push(Molecule::CH2());
+            atoms_used[0] += 1;
+            atoms_used[1] += 2;
+        } else if *shift <= 50 {
+            build.push(Molecule::CH());
+            atoms_used[0] += 1;
+            atoms_used[1] += 1;
+        } else if *shift <= 90 {
+            if O_avail > 0 {
+                build.push(Molecule::COH());
+                O_avail -= 1;
+                atoms_used[0] -= 1;
+                atoms_used[1] += 1;
+                atoms_used[2] += 1;
+            } else if N_avail > 0 {
+                build.push(Molecule::CN());
+                N_avail -= 1;
+                atoms_used[0] += 1;
+                atoms_used[3] += 1;
+            } else { panic!("shift in the 50-90 with no O or N available")}
+        } else if *shift <= 125 {
+            build.push(Molecule::Alkene());
+            atoms_used[0] += 1;
+        } else if *shift <= 150 {
+            build.push(Molecule::Aromatic());
+            atoms_used[0] += 1;
+        } else if *shift <= 170 {
+            build.push(Molecule::Ester());
+            atoms_used[0] += 1;
+            atoms_used[2] += 2;
+            O_avail -= 2;
+        } else if *shift < 190 {
+            build.push(Molecule::CarboxylicAcid());
+            atoms_used[0] += 1;
+            atoms_used[1] += 1;
+            atoms_used[2] += 2;
+            O_avail -= 2;
+        } else if *shift <= 205 {
+            build.push(Molecule::Aldehyde());
+            atoms_used[0] += 1;
+            atoms_used[1] += 1;
+            atoms_used[2] += 1;
+        } else if *shift <= 220 {
+            build.push(Molecule::Ketone());
+            atoms_used[0] += 1;
+            atoms_used[2] += 1;
+        } else {
+            panic!("Chemical Shift out of range. Values must be  less than 220 cm-1");
+        }
+    }
+    println!("{:?}", build);
+    build
+}
 
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
@@ -96,6 +161,8 @@ fn main() -> std::io::Result<()> {
     println!("IHD {}", ihd);
     println!("{:?}", elemental_analysis);
     println!("{:?}", chemical_peaks);
+    let mut molcules: Vec<Molecule> = build_elements(&elemental_analysis, &chemical_peaks, ihd);
+
 
     Ok(())
 }
