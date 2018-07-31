@@ -66,29 +66,21 @@ fn parse_peaks(peaks: &str) -> Vec<i32> {
     ret
 }
 /// Computes the index of hydrogen deficiency  to find level of unsaturation
+// IHD = (2C + 2 + N - H - X) / 2 where X is halogens
 fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
-    let c = match elements.get("C") {
-        Some(n) => *n,
-        None => 0
-    };
-    let h = match elements.get("H") {
-        Some(n) => *n,
-        None => 0
-    };
-    let n = match elements.get("N") {
-        Some(n) => *n,
-        None => 0
-    };
-    let cl = match elements.get("Cl") {
-        Some(n) => *n,
-        None => 0
-    };
-    let br = match elements.get("Br") {
-        Some(n) => *n,
-        None => 0
-    };
-    println!("C: {} H: {} N: {} Cl: {} Br: {}", c, h, n, cl, br);
-    (2*c + 2 + n - h - cl - br) / 2
+    let mut ihd: i32 = 2;
+    for (k, v) in elements.iter() {
+        match k.as_str() {
+            "C" => ihd += 2 * v,
+            "H" => ihd -= v,
+            "O" => continue,
+            "N" => ihd += v,
+            "Cl" => ihd -= v,
+            "Br" => ihd -= v,
+            _ => panic!("Unrecognized element in chemical formula"),
+        }
+    }
+    ihd/2
 }
 
 fn main() -> std::io::Result<()> {
