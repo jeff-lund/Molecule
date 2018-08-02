@@ -48,6 +48,7 @@ fn parse_peaks(peaks: &str) -> Vec<i32> {
     ret
 }
 /// Computes the index of hydrogen deficiency  to find level of unsaturation
+// 1 degree of unsaturation = 1 ring or double bond in final structure
 // IHD = (2C + 2 + N - H - X) / 2 where X is halogens
 fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
     let mut ihd: i32 = 2;
@@ -77,8 +78,6 @@ fn test_ihd() {
 
 fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>, ihd: i32) -> Vec<Molecule> {
     let mut build: Vec<Molecule> = Vec::new();
-    // By Index [C, H, O, N, Cl, Br]
-    let mut atoms_used: Vec<i32> = vec![0,0,0,0,0,0];
 
     let mut N_avail: i32 = match elemental_analysis.get("N") {
         Some(n) => *n as i32,
@@ -91,55 +90,34 @@ fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Ve
     for shift in chemical_peaks.iter() {
         if *shift <= 15 {
             build.push(Molecule::CH3());
-            atoms_used[0] += 1;
-            atoms_used[1] += 3;
         } else if *shift <= 25 {
             build.push(Molecule::CH2());
-            atoms_used[0] += 1;
-            atoms_used[1] += 2;
         } else if *shift <= 50 {
             build.push(Molecule::CH());
-            atoms_used[0] += 1;
-            atoms_used[1] += 1;
         } else if *shift <= 90 {
             if O_avail > 0 {
                 build.push(Molecule::COH());
                 O_avail -= 1;
-                atoms_used[0] -= 1;
-                atoms_used[1] += 1;
-                atoms_used[2] += 1;
             } else if N_avail > 0 {
                 build.push(Molecule::CN());
                 N_avail -= 1;
-                atoms_used[0] += 1;
-                atoms_used[3] += 1;
             } else { panic!("shift in the 50-90 with no O or N available")}
         } else if *shift <= 125 {
             build.push(Molecule::Alkene());
-            atoms_used[0] += 1;
         } else if *shift <= 150 {
             build.push(Molecule::Aromatic());
-            atoms_used[0] += 1;
         } else if *shift <= 170 {
             build.push(Molecule::Ester());
-            atoms_used[0] += 1;
-            atoms_used[2] += 2;
             O_avail -= 2;
         } else if *shift < 190 {
             build.push(Molecule::CarboxylicAcid());
-            atoms_used[0] += 1;
-            atoms_used[1] += 1;
-            atoms_used[2] += 2;
             O_avail -= 2;
         } else if *shift <= 205 {
             build.push(Molecule::Aldehyde());
-            atoms_used[0] += 1;
-            atoms_used[1] += 1;
-            atoms_used[2] += 1;
+            O_avail -= 1;
         } else if *shift <= 220 {
             build.push(Molecule::Ketone());
-            atoms_used[0] += 1;
-            atoms_used[2] += 1;
+            O_avail -= 1;
         } else {
             panic!("Chemical Shift out of range. Values must be  less than 220 cm-1");
         }

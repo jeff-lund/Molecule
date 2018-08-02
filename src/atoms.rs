@@ -4,6 +4,7 @@
 
 #[derive(Debug)]
 pub enum Atom {
+    Hydrogen,
     CH3,            // 10-15
     CH2,            // 16-25
     CH,             // 20-50
