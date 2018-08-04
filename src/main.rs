@@ -79,45 +79,39 @@ fn test_ihd() {
 fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>, ihd: i32) -> Vec<Molecule> {
     let mut build: Vec<Molecule> = Vec::new();
 
-    let mut N_avail: i32 = match elemental_analysis.get("N") {
-        Some(n) => *n as i32,
-        None => 0,
+    let mut N_present = match elemental_analysis.get("N") {
+        Some(n) => true,
+        None => false,
     };
-    let mut O_avail: i32 = match elemental_analysis.get("O") {
-        Some(n) => *n as i32,
-        None => 0,
+    let mut O_present = match elemental_analysis.get("O") {
+        Some(n) => true,
+        None => false,
     };
     for shift in chemical_peaks.iter() {
         if *shift <= 15 {
-            build.push(Molecule::CH3());
+            build.push(Molecule::CH3(*shift));
         } else if *shift <= 25 {
-            build.push(Molecule::CH2());
+            build.push(Molecule::CH2(*shift));
         } else if *shift <= 50 {
-            build.push(Molecule::CH());
+            build.push(Molecule::CH(*shift));
         } else if *shift <= 90 {
-            if O_avail > 0 {
-                build.push(Molecule::COH());
-                O_avail -= 1;
-            } else if N_avail > 0 {
-                build.push(Molecule::CN());
-                N_avail -= 1;
-            } else { panic!("shift in the 50-90 with no O or N available")}
+            if O_present {
+                build.push(Molecule::COH(*shift));
+            } else if N_present {
+                build.push(Molecule::CN(*shift));
+            } else { build.push(Molecule::CH(*shift)) }
         } else if *shift <= 125 {
-            build.push(Molecule::Alkene());
+            build.push(Molecule::Alkene(*shift));
         } else if *shift <= 150 {
-            build.push(Molecule::Aromatic());
+            build.push(Molecule::Aromatic(*shift));
         } else if *shift <= 170 {
-            build.push(Molecule::Ester());
-            O_avail -= 2;
+            build.push(Molecule::Ester(*shift));
         } else if *shift < 190 {
-            build.push(Molecule::CarboxylicAcid());
-            O_avail -= 2;
+            build.push(Molecule::CarboxylicAcid(*shift));
         } else if *shift <= 205 {
-            build.push(Molecule::Aldehyde());
-            O_avail -= 1;
+            build.push(Molecule::Aldehyde(*shift));
         } else if *shift <= 220 {
-            build.push(Molecule::Ketone());
-            O_avail -= 1;
+            build.push(Molecule::Ketone(*shift));
         } else {
             panic!("Chemical Shift out of range. Values must be  less than 220 cm-1");
         }

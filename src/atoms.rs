@@ -26,57 +26,58 @@ pub struct Molecule {
     kind: Atom,
     bonds: Vec<i32>,
     preset_bonds: i32,
+    chemical_shift: i32,
 }
 
 impl Molecule {
-    pub fn new(kind: Atom, preset_bonds: i32) -> Self {
+    pub fn new(kind: Atom, shift: i32, preset_bonds: i32) -> Self {
         let mut bonds = Vec::new();
-        Molecule {kind, bonds, preset_bonds}
+        Molecule {kind, bonds, chemical_shift: shift, preset_bonds}
     }
-    pub fn CH3() -> Molecule {
-        Molecule::new(Atom::CH3, 3)
+    pub fn CH3(shift: i32) -> Molecule {
+        Molecule::new(Atom::CH3, shift, 3)
     }
-    pub fn CH2() -> Molecule {
-        Molecule::new(Atom::CH2, 2)
+    pub fn CH2(shift: i32) -> Molecule {
+        Molecule::new(Atom::CH2, shift, 2)
     }
-    pub fn CH() -> Molecule {
-        Molecule::new(Atom::CH3, 1)
+    pub fn CH(shift: i32) -> Molecule {
+        Molecule::new(Atom::CH3, shift, 1)
     }
-    pub fn CarboxylicAcid() -> Molecule {
-        Molecule::new(Atom::CarboxylicAcid, 3)
+    pub fn CarboxylicAcid(shift: i32) -> Molecule {
+        Molecule::new(Atom::CarboxylicAcid, shift, 3)
     }
-    pub fn Ester() -> Molecule {
-        Molecule::new(Atom::Ester, 1)
+    pub fn Ester(shift: i32) -> Molecule {
+        Molecule::new(Atom::Ester, shift, 1)
     }
-    pub fn Aldehyde() -> Molecule {
-        Molecule::new(Atom::Aldehyde, 3)
+    pub fn Aldehyde(shift: i32) -> Molecule {
+        Molecule::new(Atom::Aldehyde, shift, 3)
     }
-    pub fn Ketone() -> Molecule {
-        Molecule::new(Atom::Ketone, 2)
+    pub fn Ketone(shift: i32) -> Molecule {
+        Molecule::new(Atom::Ketone, shift, 2)
     }
-    pub fn Amide() -> Molecule {
-        Molecule::new(Atom::Amide, 1)
+    pub fn Amide(shift: i32) -> Molecule {
+        Molecule::new(Atom::Amide, shift, 1)
     }
-    pub fn Alkene() -> Molecule {
-        Molecule::new(Atom::Alkene, 1)
+    pub fn Alkene(shift: i32) -> Molecule {
+        Molecule::new(Atom::Alkene, shift, 1)
     }
-    pub fn Aromatic() -> Molecule {
-        Molecule::new(Atom::Aromatic, 1)
+    pub fn Aromatic(shift: i32) -> Molecule {
+        Molecule::new(Atom::Aromatic, shift, 1)
     }
-    pub fn CO() -> Molecule {
-        Molecule::new(Atom::CO, 1)
+    pub fn CO(shift: i32) -> Molecule {
+        Molecule::new(Atom::CO, shift, 1)
     }
-    pub fn COH() -> Molecule {
-        Molecule::new(Atom::COH, 2)
+    pub fn COH(shift: i32) -> Molecule {
+        Molecule::new(Atom::COH, shift, 2)
     }
-    pub fn CN() -> Molecule {
-        Molecule::new(Atom::CN, 1)
+    pub fn CN(shift: i32) -> Molecule {
+        Molecule::new(Atom::CN, shift, 1)
     }
-    pub fn CCl() -> Molecule {
-        Molecule::new(Atom::CCl, 1)
+    pub fn CCl(shift: i32) -> Molecule {
+        Molecule::new(Atom::CCl, shift, 1)
     }
-    pub fn CBr() -> Molecule {
-        Molecule::new(Atom::CBr, 1)
+    pub fn CBr(shift: i32) -> Molecule {
+        Molecule::new(Atom::CBr, shift, 1)
     }
     //pub fn transform(&mut self, Atom) {}
 }
