@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 #![allow(unused_mut)]
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Atom {
     Hydrogen,
     CH3,            // 10-15
@@ -12,7 +12,7 @@ pub enum Atom {
     CBr,            // 10-65
     CN,             // 30-65
     CO,             // 50-90
-    COH,            // 50-90
+    CNO,            // 50-90
     Alkene,         // 115-140
     Aromatic,       // 125-150
     Amide,          // 150-180
@@ -23,10 +23,10 @@ pub enum Atom {
 }
 #[derive(Debug)]
 pub struct Molecule {
-    kind: Atom,
-    bonds: Vec<i32>,
-    preset_bonds: i32,
-    chemical_shift: i32,
+    pub kind: Atom,
+    pub bonds: Vec<i32>,
+    pub preset_bonds: i32,
+    pub chemical_shift: i32,
 }
 
 impl Molecule {
@@ -67,8 +67,8 @@ impl Molecule {
     pub fn CO(shift: i32) -> Molecule {
         Molecule::new(Atom::CO, shift, 1)
     }
-    pub fn COH(shift: i32) -> Molecule {
-        Molecule::new(Atom::COH, shift, 2)
+    pub fn CNO(shift: i32) -> Molecule {
+        Molecule::new(Atom::CNO, shift, 1)
     }
     pub fn CN(shift: i32) -> Molecule {
         Molecule::new(Atom::CN, shift, 1)
@@ -79,5 +79,7 @@ impl Molecule {
     pub fn CBr(shift: i32) -> Molecule {
         Molecule::new(Atom::CBr, shift, 1)
     }
-    //pub fn transform(&mut self, Atom) {}
+    pub fn transform(&mut self, atom: Atom) {
+        self.kind = atom;
+    }
 }

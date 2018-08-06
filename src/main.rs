@@ -45,6 +45,7 @@ fn parse_peaks(peaks: &str) -> Vec<i32> {
     for p in buf {
         ret.push(p.trim().parse::<i32>().expect("peaks has a non digit"));
     }
+    ret.sort_by(|x, y| y.cmp(x));
     ret
 }
 /// Computes the index of hydrogen deficiency  to find level of unsaturation
@@ -66,7 +67,6 @@ fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
     ihd/2
 }
 #[test]
-//add tests with halogens
 fn test_ihd() {
     let caffeine: HashMap<String, i32> = [("C".to_string(), 8), ("H".to_string(), 10),
         ("N".to_string(), 4), ("O".to_string(), 2)].iter().cloned().collect();
@@ -76,16 +76,28 @@ fn test_ihd() {
     assert_eq!(compute_ihd(&acetic_acid), 1);
 }
 
+fn symmetrical_carbons(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>) -> bool {
+    let ncarbons = elemental_analysis.get("C").expect("No carbons present in formula");
+    let length = chemical_peaks.len() as i32;
+    if *ncarbons == length {
+        false
+    } else if *ncarbons > length {
+        true
+    } else {
+        panic!("Symmetrical carbons: cannot have more peaks than carbons");
+    }
+}
+
 fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>, ihd: i32) -> Vec<Molecule> {
     let mut build: Vec<Molecule> = Vec::new();
-
-    let mut N_present = match elemental_analysis.get("N") {
-        Some(n) => true,
-        None => false,
+    let mut n_or_o = 0;
+    let mut N_avail: i32 = match elemental_analysis.get("N") {
+        Some(n) => *n as i32,
+        None => 0,
     };
-    let mut O_present = match elemental_analysis.get("O") {
-        Some(n) => true,
-        None => false,
+    let mut O_avail: i32 = match elemental_analysis.get("O") {
+        Some(n) => *n as i32,
+        None => 0,
     };
     for shift in chemical_peaks.iter() {
         if *shift <= 15 {
@@ -95,25 +107,46 @@ fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Ve
         } else if *shift <= 50 {
             build.push(Molecule::CH(*shift));
         } else if *shift <= 90 {
-            if O_present {
-                build.push(Molecule::COH(*shift));
-            } else if N_present {
-                build.push(Molecule::CN(*shift));
-            } else { build.push(Molecule::CH(*shift)) }
+            build.push(Molecule::CNO(*shift));
+            n_or_o += 1;
         } else if *shift <= 125 {
             build.push(Molecule::Alkene(*shift));
         } else if *shift <= 150 {
             build.push(Molecule::Aromatic(*shift));
         } else if *shift <= 170 {
             build.push(Molecule::Ester(*shift));
+            O_avail -= 2;
         } else if *shift < 190 {
             build.push(Molecule::CarboxylicAcid(*shift));
+            O_avail -= 2;
         } else if *shift <= 205 {
             build.push(Molecule::Aldehyde(*shift));
+            O_avail -= 1;
         } else if *shift <= 220 {
             build.push(Molecule::Ketone(*shift));
+            O_avail -= 1;
         } else {
-            panic!("Chemical Shift out of range. Values must be  less than 220 cm-1");
+            panic!("Chemical Shift out of range. Values must be  less than 220");
+        }
+    }
+
+    if n_or_o > 0 {
+        if N_avail + O_avail == n_or_o {
+            for x in build.iter_mut() {
+                if x.kind == Atom::CNO {
+                    if O_avail > 0 {
+                        x.transform(Atom::CO);
+                        O_avail -= 1;
+                    } else if N_avail > 0 {
+                        x.transform(Atom::CN);
+                        N_avail -= 1;
+                    } else {
+                        panic!{"ran out of n's and o's somehow"}
+                    }
+                }
+            }
+        } else {
+            panic!("Support for esters/ethers not implemented yet!")
         }
     }
     println!("{:?}", build);
@@ -134,7 +167,11 @@ fn main() -> std::io::Result<()> {
     println!("{:?}", elemental_analysis);
     println!("{:?}", chemical_peaks);
     let mut molcules: Vec<Molecule> = build_elements(&elemental_analysis, &chemical_peaks, ihd);
-
+    if symmetrical_carbons(&elemental_analysis, &chemical_peaks) {
+        println!("Symmetric carbons present");
+    } else {
+        println!("All carbons accounted for in peaks")
+    }
 
     Ok(())
 }
