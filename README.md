@@ -17,3 +17,8 @@ RCH3			10-15 \
 File Input
 [Elemental Analysis i.e C2H4O2] \
 [Comma separated chemical shifts i.e 162, 51] \
+
+Refercnes: \
+Contemporary Computer-Assisted Approaches to Molecular Structure Elucidation \
+Genius: A Genetic Algorithm for Automated Structure Elucidation from 13C
+NMR Spectra \
