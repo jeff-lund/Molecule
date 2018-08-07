@@ -15,8 +15,8 @@ use atoms::Molecule;
 
 // parsing elemental analysis
 // breaks on single elements in formule i.e (CH4), needs error checking for valid elements
-fn parse_chemical_formula(formula: &str) -> HashMap<String, i32> {
-    let mut elemental_analysis = HashMap::new();
+fn parse_elemental_analysis(formula: &str) -> HashMap<String, i32> {
+    let mut chemical_formula = HashMap::new();
     let valid_elements: HashSet<_> = ["C", "H", "O", "N", "Cl", "Br"].iter().cloned().collect();
     let mut elements: Vec<&str> = formula.split(char::is_numeric).collect();
     elements.retain(|e| e != &"");
@@ -31,12 +31,12 @@ fn parse_chemical_formula(formula: &str) -> HashMap<String, i32> {
         panic!("elements and quantities do not match. Invalid chemical formula");
     }
     for (elem, quant) in elements.iter().zip(quantities.iter()) {
-        elemental_analysis.insert(
+        chemical_formula.insert(
             elem.to_string(),
             quant.parse::<i32>().expect("Not a number"),
         );
     }
-    elemental_analysis
+    chemical_formula
 }
 
 fn parse_peaks(peaks: &str) -> Vec<i32> {
@@ -76,8 +76,8 @@ fn test_ihd() {
     assert_eq!(compute_ihd(&acetic_acid), 1);
 }
 
-fn symmetrical_carbons(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>) -> bool {
-    let ncarbons = elemental_analysis.get("C").expect("No carbons present in formula");
+fn symmetrical_carbons(chemical_formula: &HashMap<String, i32>, chemical_peaks: &Vec<i32>) -> bool {
+    let ncarbons = chemical_formula.get("C").expect("No carbons present in formula");
     let length = chemical_peaks.len() as i32;
     if *ncarbons == length {
         false
@@ -88,71 +88,54 @@ fn symmetrical_carbons(elemental_analysis: &HashMap<String, i32>, chemical_peaks
     }
 }
 
-fn build_elements(elemental_analysis: &HashMap<String, i32>, chemical_peaks: &Vec<i32>, ihd: i32) -> Vec<Molecule> {
-    let mut build: Vec<Molecule> = Vec::new();
-    let mut n_or_o = 0;
-    let mut N_avail: i32 = match elemental_analysis.get("N") {
-        Some(n) => *n as i32,
-        None => 0,
-    };
-    let mut O_avail: i32 = match elemental_analysis.get("O") {
-        Some(n) => *n as i32,
-        None => 0,
-    };
-    for shift in chemical_peaks.iter() {
-        if *shift <= 15 {
-            build.push(Molecule::CH3(*shift));
-        } else if *shift <= 25 {
-            build.push(Molecule::CH2(*shift));
-        } else if *shift <= 50 {
-            build.push(Molecule::CH(*shift));
-        } else if *shift <= 90 {
-            build.push(Molecule::CNO(*shift));
-            n_or_o += 1;
-        } else if *shift <= 125 {
-            build.push(Molecule::Alkene(*shift));
-        } else if *shift <= 150 {
-            build.push(Molecule::Aromatic(*shift));
-        } else if *shift <= 170 {
-            build.push(Molecule::Ester(*shift));
-            O_avail -= 2;
-        } else if *shift < 190 {
-            build.push(Molecule::CarboxylicAcid(*shift));
-            O_avail -= 2;
-        } else if *shift <= 205 {
-            build.push(Molecule::Aldehyde(*shift));
-            O_avail -= 1;
-        } else if *shift <= 220 {
-            build.push(Molecule::Ketone(*shift));
-            O_avail -= 1;
-        } else {
-            panic!("Chemical Shift out of range. Values must be  less than 220");
-        }
-    }
-
-    if n_or_o > 0 {
-        if N_avail + O_avail == n_or_o {
-            for x in build.iter_mut() {
-                if x.kind == Atom::CNO {
-                    if O_avail > 0 {
-                        x.transform(Atom::CO);
-                        O_avail -= 1;
-                    } else if N_avail > 0 {
-                        x.transform(Atom::CN);
-                        N_avail -= 1;
-                    } else {
-                        panic!{"ran out of n's and o's somehow"}
-                    }
-                }
+// Creates vec with individual atoms in C - O - N - Cl - Br order.
+// Hydrogen atoms are not included in this vector
+// Rework ugly copy paste code
+fn get_atoms(chemical_formula: &HashMap<String, i32>) -> Vec<&str> {
+    let mut v: Vec<&str> = Vec::new();
+    let mut i: i32;
+    match chemical_formula.get("C") {
+        Some(i) => {
+            for _ in 0..*i {
+                v.push("C");
             }
-        } else {
-            panic!("Support for esters/ethers not implemented yet!")
-        }
+        },
+        None => (),
     }
-    println!("{:?}", build);
-    build
+    match chemical_formula.get("O") {
+        Some(i) => {
+            for _ in 0..*i {
+                v.push("O");
+            }
+        },
+        None => (),
+    }
+    match chemical_formula.get("N") {
+        Some(i) => {
+            for _ in 0..*i {
+                v.push("N");
+            }
+        },
+        None => (),
+    }
+    match chemical_formula.get("Cl") {
+        Some(i) => {
+            for _ in 0..*i {
+                v.push("Cl");
+            }
+        },
+        None => (),
+    }
+    match chemical_formula.get("Br") {
+        Some(i) => {
+            for _ in 0..*i {
+                v.push("Br");
+            }
+        },
+        None => (),
+    }
+    v
 }
-
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
     let f = args().nth(1).expect("No file argument given");
@@ -160,14 +143,16 @@ fn main() -> std::io::Result<()> {
     let mut buffer = String::new();
     file.read_to_string(&mut buffer)?;
     let mut b = buffer.lines(); // change this name later
-    let mut elemental_analysis = parse_chemical_formula(b.next().expect("invalid file"));
+    let mut chemical_formula = parse_elemental_analysis(b.next().expect("invalid file"));
     let mut chemical_peaks: Vec<i32> = parse_peaks(b.next().expect("invalid file"));
-    let ihd = compute_ihd(&elemental_analysis);
+    let ihd = compute_ihd(&chemical_formula);
+    let atoms = get_atoms(&chemical_formula);
+    println!("{:?}", atoms);
     println!("IHD {}", ihd);
-    println!("{:?}", elemental_analysis);
+    println!("{:?}", chemical_formula);
     println!("{:?}", chemical_peaks);
-    let mut molcules: Vec<Molecule> = build_elements(&elemental_analysis, &chemical_peaks, ihd);
-    if symmetrical_carbons(&elemental_analysis, &chemical_peaks) {
+
+    if symmetrical_carbons(&chemical_formula, &chemical_peaks) {
         println!("Symmetric carbons present");
     } else {
         println!("All carbons accounted for in peaks")
