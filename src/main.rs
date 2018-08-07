@@ -1,18 +1,22 @@
 // Copyright (c) 2018 Jeff Lund
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-#![allow(unused_mut)]
-#![allow(unused_variables)]
 #![allow(unused_imports)]
+
+#[macro_use(s)]
+extern crate ndarray;
+extern crate rand;
+use rand::prelude::*;
+use ndarray::prelude::*;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
-mod atoms;
-use atoms::Atom;
-use atoms::Molecule;
 
+type Molecule = Array2<u8>;
+type Chromosome = Vec<u8>;
 // parsing elemental analysis
 // breaks on single elements in formule i.e (CH4), needs error checking for valid elements
 fn parse_elemental_analysis(formula: &str) -> HashMap<String, i32> {
@@ -93,49 +97,111 @@ fn symmetrical_carbons(chemical_formula: &HashMap<String, i32>, chemical_peaks: 
 // Rework ugly copy paste code
 fn get_atoms(chemical_formula: &HashMap<String, i32>) -> Vec<&str> {
     let mut v: Vec<&str> = Vec::new();
-    let mut i: i32;
     match chemical_formula.get("C") {
-        Some(i) => {
-            for _ in 0..*i {
-                v.push("C");
-            }
-        },
+        Some(n) => { for _ in 0..*n { v.push("C"); }},
         None => (),
     }
     match chemical_formula.get("O") {
-        Some(i) => {
-            for _ in 0..*i {
-                v.push("O");
-            }
-        },
+        Some(n) => { for _ in 0..*n { v.push("O"); }},
         None => (),
     }
     match chemical_formula.get("N") {
-        Some(i) => {
-            for _ in 0..*i {
-                v.push("N");
-            }
-        },
+        Some(n) => { for _ in 0..*n { v.push("N");}},
         None => (),
     }
     match chemical_formula.get("Cl") {
-        Some(i) => {
-            for _ in 0..*i {
-                v.push("Cl");
-            }
-        },
+        Some(n) => {for _ in 0..*n { v.push("Cl"); }},
         None => (),
     }
     match chemical_formula.get("Br") {
-        Some(i) => {
-            for _ in 0..*i {
-                v.push("Br");
-            }
-        },
+        Some(n) => { for _ in 0..*n { v.push("Br"); }},
         None => (),
     }
     v
 }
+// Returns (total bonds, assigned bonds)
+// When building matrices only heavy atoms are assigned, hydrogen is ignored
+// The total bonds are needed to check the final structure has exactly the number of
+// open bonds to fill in with hydrogens
+// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
+// assigned bonds = total bonds - hydrogen
+fn get_bonds(chemical_formula: &HashMap<String, i32>) -> (i32, i32) {
+    let mut total_bonds = 0;
+    match chemical_formula.get("C") {
+        Some(n) => total_bonds += n * 4,
+        None => (),
+    }
+    match chemical_formula.get("O") {
+        Some(n) => total_bonds += n * 2,
+        None => (),
+    }
+    match chemical_formula.get("N") {
+        Some(n) => total_bonds += n * 3,
+        None => (),
+    }
+    match chemical_formula.get("Cl") {
+        Some(n) => total_bonds += n,
+        None => (),
+    }
+    match chemical_formula.get("Br") {
+        Some(n) => total_bonds += n,
+        None => (),
+    }
+    let h: i32 = match chemical_formula.get("H") {
+        Some(n) => *n,
+        None => 0,
+    };
+    total_bonds = (total_bonds + h) / 2;
+    let assigned_bonds = total_bonds - h;
+    println!("Total: {} | Assigned: {}", total_bonds, assigned_bonds);
+    (total_bonds, assigned_bonds)
+}
+// length is the len x len dimensions of the desired matrix.
+// Must be equal to the length of the atoms vector
+fn chromosome_to_molecule(chrom: &Chromosome, length: usize) -> Molecule {
+    let mut m = Molecule::zeros((length, length));
+    let mut c = 0;
+    for i in 0..length {
+        for j in 0..length {
+            if  j <= i { continue; }
+            m[[i, j]] = chrom[c];
+            m[[j, i]] = chrom[c];
+            c += 1;
+        }
+    }
+    m
+}
+// creates a chromosome vector from a molecule matrix
+// length is the length of the atoms vector, aka len for len x len matrix
+fn molecule_to_chromosome(M: Molecule, length: usize) -> Chromosome {
+    let mut chromosome = Chromosome::new();
+    for i in 0..length {
+        for j in 0..length {
+            if j <= i { continue; }
+            chromosome.push(M[[i, j]]);
+        }
+    }
+    chromosome
+}
+// Randomly creates sample molecule
+fn create_test_molecule(atoms: &Vec<&str>, bonds: (i32, i32)) -> Molecule {
+    let mut rng = thread_rng();
+    let l = atoms.len() as usize;
+    let num_bonds = bonds.1;
+    let chromosome_length: usize = (l * l - l)/2;
+    let mut chromosome: Chromosome = vec![0; chromosome_length];
+
+    let mut x: usize;
+    for _ in 0..num_bonds {
+        x = rng.gen_range(0, chromosome_length);
+        chromosome[x] += 1;
+    }
+    println!("Chromesome: {:?}", chromosome);
+    let ret = chromosome_to_molecule(&chromosome, l);
+    println!("Adj Matrix:\n{:?}", ret);
+    ret
+}
+
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
     let f = args().nth(1).expect("No file argument given");
@@ -143,10 +209,14 @@ fn main() -> std::io::Result<()> {
     let mut buffer = String::new();
     file.read_to_string(&mut buffer)?;
     let mut b = buffer.lines(); // change this name later
-    let mut chemical_formula = parse_elemental_analysis(b.next().expect("invalid file"));
-    let mut chemical_peaks: Vec<i32> = parse_peaks(b.next().expect("invalid file"));
+    let chemical_formula = parse_elemental_analysis(b.next().expect("invalid file"));
+    let chemical_peaks: Vec<i32> = parse_peaks(b.next().expect("invalid file"));
     let ihd = compute_ihd(&chemical_formula);
+    let bonds = get_bonds(&chemical_formula);
     let atoms = get_atoms(&chemical_formula);
+    let m = create_test_molecule(&atoms, bonds);
+    println!("{:?}", molecule_to_chromosome(m, atoms.len()));
+
     println!("{:?}", atoms);
     println!("IHD {}", ihd);
     println!("{:?}", chemical_formula);
@@ -154,8 +224,6 @@ fn main() -> std::io::Result<()> {
 
     if symmetrical_carbons(&chemical_formula, &chemical_peaks) {
         println!("Symmetric carbons present");
-    } else {
-        println!("All carbons accounted for in peaks")
     }
 
     Ok(())
