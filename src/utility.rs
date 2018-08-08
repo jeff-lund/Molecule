@@ -32,7 +32,7 @@ pub fn parse_peaks(peaks: &str) -> Vec<f32> {
     let mut ret: Vec<f32> = Vec::new();
     let buf = peaks.split(',');
     for p in buf {
-        ret.push(p.trim().parse::<f32>().expect("peaks has a non digit"));
+        ret.push(p.trim().parse::<f32>().expect("peaks incorrectly formatted, expects floats"));
     }
     ret.sort_by(|x, y| y.partial_cmp(x).unwrap());
     ret
@@ -115,6 +115,7 @@ pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (i32, i32) {
     (total_bonds, assigned_bonds)
 }
 
+// PROBABLY DONT NEED THIS
 // Computes the index of gen deficiency  to find level of unsaturation
 // 1 degree of unsaturation = 1 ring or double bond in final structure
 // IHD = (2C + 2 + N - H - X) / 2 where X is halogens

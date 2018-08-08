@@ -54,9 +54,9 @@ pub fn chromosome_to_molecule(chrom: &Chromosome, length: usize) -> Molecule {
     m
 }
 // creates a chromosome vector from a molecule matrix
-pub fn molecule_to_chromosome(mol: Molecule) -> Chromosome {
+pub fn molecule_to_chromosome(mol: &Molecule) -> Chromosome {
     let mut chromosome = Chromosome::new();
-    let len = mol.dim.0;
+    let len = mol.dim().0;
     for i in 0..len {
         for j in 0..len {
             if j <= i { continue; }
@@ -107,9 +107,34 @@ pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (i32, i32)) -> Option<Mole
         chromosome[x] += 1;
     }
     let ret = chromosome_to_molecule(&chromosome, l);
-    if !connected(&ret, l) {
-        None
-    } else {
+    if connected(&ret, l) {
         Some(ret)
+    } else {
+        None
     }
+}
+
+// reduce molecule to eliminate double/truple bonds
+pub fn reduce_molecule(mol: &Molecule) -> Molecule {
+    let mut chrom = molecule_to_chromosome(mol);
+    for i in 0..chrom.len() {
+        match chrom[i] {
+            0 => (),
+            _ => chrom[i] = 1,
+        }
+    }
+    chromosome_to_molecule(&chrom, mol.dim().0)
+}
+
+pub fn edges(mol: &Molecule) -> (Vec<(usize, usize)>) {
+    let mut ret: Vec<(usize, usize)> = Vec::new()
+    let len = mol.dim().0;
+    for i in 0..len {
+        for j in 0.. len {
+            for 0..mol[[i, j]] {
+                ret.push((i, j));
+            }
+        }
+    }
+    ret
 }
