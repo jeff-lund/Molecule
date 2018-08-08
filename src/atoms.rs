@@ -153,30 +153,30 @@ pub fn rings_present(mol: &Molecule) -> Option<Vec<(usize, usize)>> {
     for i in 0..len { // TODO find better way to initialize this
         nodes.push(i as usize);
     }
-    let mut outdegree: Vec<usize> = vec![0; len];
+    let mut degree: Vec<usize> = vec![0; len];
     let mut singletons: Vec<usize> = Vec::new();
     let mut edge = edges(mol);
     while !nodes.is_empty() {
-        //find outdegree of each nodes
+        //find degree of each nodes
         for (node1, node2) in edge.iter() {
-            outdegree[*node1] += 1;
-            outdegree[*node2] += 1;
+            degree[*node1] += 1;
+            degree[*node2] += 1;
         }
-        // remove edges that contain nodes with outdegree of one
-        if !outdegree.contains(&1) {
-            // if there are no nodes with outdegree of 1 then the remaining nodes form a cycle
+        // remove edges that contain nodes with degree of one
+        if !degree.contains(&1) {
+            // if there are no nodes with degree of 1 then the remaining nodes form a cycle
             // should return edges
             println!("Cycle detected");
             return Some(edge);
         }
-        for od in outdegree.iter().enumerate() { // TODO - can probably make this for loop to an iter
+        for od in degree.iter().enumerate() { // TODO - can probably make this for loop to an iter
             if *od.1 == 1 {
                 singletons.push(od.0);
             }
         }
         nodes.retain(|node1| !singletons.contains(node1));
         edge.retain(|(node1,node2)| !singletons.contains(node1) && !singletons.contains(node2));
-        outdegree = vec![0; len];
+        degree = vec![0; len];
     }
     None
 }
@@ -198,6 +198,8 @@ pub fn compute_shift(
     let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
     let reduced_mol = reduce_molecule(mol);
     let r = rings_present(&reduced_mol);
-    let temp: Vec<f32> = vec![0.0, 0.1];
+
+
+    let temp: Vec<f32> = vec![0.0];
     temp
 }
