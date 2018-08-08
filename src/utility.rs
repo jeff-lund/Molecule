@@ -112,7 +112,6 @@ pub fn get_bonds(chemical_formula: &HashMap<String, i32>) -> (i32, i32) {
     };
     total_bonds = (total_bonds + h) / 2;
     let assigned_bonds = total_bonds - h;
-    println!("Total: {} | Assigned: {}", total_bonds, assigned_bonds);
     (total_bonds, assigned_bonds)
 }
 
