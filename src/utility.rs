@@ -4,7 +4,7 @@ use std::collections::HashSet;
 // Parses elemental analysis into a HashMap for easy access
 // to the elements of the chemical formula
 // Requires explicit counting for all atoms in formula, i.e. C2H6O1 not C2H6O
-pub fn parse_elemental_analysis(formula: &str) -> HashMap<String, i32> {
+pub fn parse_elemental_analysis(formula: &str) -> HashMap<&str, i32> {
     let mut chemical_formula = HashMap::new();
     let valid_elements: HashSet<_> = ["C", "H", "O", "N", "Cl", "Br"].iter().cloned().collect();
     let mut elements: Vec<&str> = formula.split(char::is_numeric).collect();
@@ -21,7 +21,7 @@ pub fn parse_elemental_analysis(formula: &str) -> HashMap<String, i32> {
     }
     for (elem, quant) in elements.iter().zip(quantities.iter()) {
         chemical_formula.insert(
-            elem.to_string(),
+            *elem,
             quant.parse::<i32>().expect("Not a number"),
         );
     }
@@ -38,7 +38,7 @@ pub fn parse_peaks(peaks: &str) -> Vec<f32> {
     ret
 }
 
-pub fn symmetrical_carbons(chemical_formula: &HashMap<String, i32>,
+pub fn symmetrical_carbons(chemical_formula: &HashMap<&str, i32>,
         chemical_peaks: &Vec<f32>) -> bool {
     let ncarbons = chemical_formula.get("C").expect("No carbons present in formula");
     let length = chemical_peaks.len() as i32;
@@ -54,7 +54,7 @@ pub fn symmetrical_carbons(chemical_formula: &HashMap<String, i32>,
 // Creates vec with individual atoms in C - O - N - Cl - Br order.
 // Hydrogen atoms are not included in this vector
 // Rework ugly copy paste code
-pub fn get_atoms(chemical_formula: &HashMap<String, i32>) -> Vec<&str> {
+pub fn get_atoms(chemical_formula: &HashMap<&str, i32>) -> Vec<&'static str> {
     let mut v: Vec<&str> = Vec::new();
     match chemical_formula.get("C") {
         Some(n) => { for _ in 0..*n { v.push("C"); }},
@@ -84,7 +84,7 @@ pub fn get_atoms(chemical_formula: &HashMap<String, i32>) -> Vec<&str> {
 // open bonds to fill in with hydrogens
 // Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
 // assigned bonds = total bonds - hydrogen
-pub fn get_bonds(chemical_formula: &HashMap<String, i32>) -> (i32, i32) {
+pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (i32, i32) {
     let mut total_bonds = 0;
     match chemical_formula.get("C") {
         Some(n) => total_bonds += n * 4,
@@ -118,14 +118,14 @@ pub fn get_bonds(chemical_formula: &HashMap<String, i32>) -> (i32, i32) {
 // Computes the index of gen deficiency  to find level of unsaturation
 // 1 degree of unsaturation = 1 ring or double bond in final structure
 // IHD = (2C + 2 + N - H - X) / 2 where X is halogens
-pub fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
+pub fn compute_ihd(elements: &HashMap<&str, i32>) -> i32 {
     let mut ihd: i32 = 2;
     for (k, v) in elements.iter() {
-        match k.as_str() {
+        match k.as_ref() {
             "C" => ihd += 2 * v,
             "H" => ihd -= v,
-            "O" => continue,
             "N" => ihd += v,
+            "O" => continue,
             "Cl" => ihd -= v,
             "Br" => ihd -= v,
             _ => panic!("Unrecognized element in chemical formula"),
@@ -135,10 +135,10 @@ pub fn compute_ihd(elements: &HashMap<String, i32>) -> i32 {
 }
 #[test]
 fn test_ihd() {
-    let caffeine: HashMap<String, i32> = [("C".to_string(), 8), ("H".to_string(), 10),
+    let caffeine: HashMap<&str, i32> = [("C".to_string(), 8), ("H".to_string(), 10),
         ("N".to_string(), 4), ("O".to_string(), 2)].iter().cloned().collect();
     assert_eq!(compute_ihd(&caffeine), 6);
-    let acetic_acid: HashMap<String, i32> = [("C".to_string(), 2), ("H".to_string(), 4),
+    let acetic_acid: HashMap<&str, i32> = [("C".to_string(), 2), ("H".to_string(), 4),
         ("O".to_string(), 2)].iter().cloned().collect();
     assert_eq!(compute_ihd(&acetic_acid), 1);
 }
