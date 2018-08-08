@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-#![allow(unused_mut)]
 
 #[derive(Debug, PartialEq)]
 pub enum Atom {
@@ -22,8 +21,8 @@ pub enum Atom {
 }
 #[derive(Debug)]
 pub struct Molecule {
-    pub kind: Atom,
-    pub chemical_shift: i32,
+    kind: Atom,
+    chemical_shift: i32,
 }
 
 impl Molecule {
