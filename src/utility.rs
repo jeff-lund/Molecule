@@ -136,10 +136,10 @@ pub fn compute_ihd(elements: &HashMap<&str, i32>) -> i32 {
 }
 #[test]
 fn test_ihd() {
-    let caffeine: HashMap<&str, i32> = [("C".to_string(), 8), ("H".to_string(), 10),
-        ("N".to_string(), 4), ("O".to_string(), 2)].iter().cloned().collect();
+    let caffeine: HashMap<&str, i32> = [("C", 8), ("H", 10),
+        ("N", 4), ("O", 2)].iter().cloned().collect();
     assert_eq!(compute_ihd(&caffeine), 6);
-    let acetic_acid: HashMap<&str, i32> = [("C".to_string(), 2), ("H".to_string(), 4),
-        ("O".to_string(), 2)].iter().cloned().collect();
+    let acetic_acid: HashMap<&str, i32> = [("C", 2), ("H", 4),
+        ("O", 2)].iter().cloned().collect();
     assert_eq!(compute_ihd(&acetic_acid), 1);
 }

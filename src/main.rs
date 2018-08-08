@@ -6,6 +6,7 @@ mod utility;
 use utility::*;
 mod atoms;
 use atoms::*;
+
 use std::collections::HashMap;
 use std::env::args;
 use std::fs::File;

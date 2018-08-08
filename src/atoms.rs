@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
+#![allow(unused_variables)]
 extern crate ndarray;
 extern crate rand;
 use atoms::rand::prelude::*;
 use atoms::ndarray::prelude::*;
-
+use std::collections::HashMap;
 #[derive(Debug, PartialEq)]
 pub enum Atom {
     Hydrogen,
@@ -131,6 +132,7 @@ pub fn edges(mol: &Molecule) -> (Vec<(usize, usize)>) {
     let len = mol.dim().0;
     for i in 0..len {
         for j in 0.. len {
+            if j <= i { continue; }
             for _ in 0..mol[[i, j]] {
                 ret.push((i, j));
             }
@@ -139,4 +141,63 @@ pub fn edges(mol: &Molecule) -> (Vec<(usize, usize)>) {
     println!("edges");
     println!("{:?}", ret);
     ret
+}
+// need to bring chem shift in tables
+
+// detects if rings are present in molecule
+// returns None if no rings are present
+// -returns vector containing carbons in ring if cycle is present
+pub fn rings_present(mol: &Molecule) -> Option<Vec<(usize, usize)>> {
+    let len = mol.dim().0;
+    let mut nodes: Vec<usize> = Vec::new();
+    for i in 0..len { // TODO find better way to initialize this
+        nodes.push(i as usize);
+    }
+    let mut outdegree: Vec<usize> = vec![0; len];
+    let mut singletons: Vec<usize> = Vec::new();
+    let mut edge = edges(mol);
+    while !nodes.is_empty() {
+        //find outdegree of each nodes
+        for (node1, node2) in edge.iter() {
+            outdegree[*node1] += 1;
+            outdegree[*node2] += 1;
+        }
+        // remove edges that contain nodes with outdegree of one
+        if !outdegree.contains(&1) {
+            // if there are no nodes with outdegree of 1 then the remaining nodes form a cycle
+            // should return edges
+            println!("Cycle detected");
+            return Some(edge);
+        }
+        for od in outdegree.iter().enumerate() { // TODO - can probably make this for loop to an iter
+            if *od.1 == 1 {
+                singletons.push(od.0);
+            }
+        }
+        nodes.retain(|node1| !singletons.contains(node1));
+        edge.retain(|(node1,node2)| !singletons.contains(node1) && !singletons.contains(node2));
+        outdegree = vec![0; len];
+    }
+    None
+}
+#[test]
+fn test_rings_present() {
+    let chrom1: Chromosome = vec![1,0,0,0,1,0,0,1,1,0];
+    let test1 = chromosome_to_molecule(&chrom1, 5);
+    let chrom2: Chromosome = vec![1,0,0,1,1,1,1,0,0,0,0,0,0,0,1];
+    let test2 = chromosome_to_molecule(&chrom2, 6);
+    assert_eq!(rings_present(&test1), None);
+    assert_eq!(rings_present(&test2), Some(vec![(0,4),(0,5),(4,5)]));
+}
+
+pub fn compute_shift(
+    mol: &Molecule, atoms: &Vec<&str>,
+    chemical_formula: &HashMap<&str, i32>
+) -> Vec<f32> {
+    // find longest carbon chain
+    let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
+    let reduced_mol = reduce_molecule(mol);
+    let r = rings_present(&reduced_mol);
+    let temp: Vec<f32> = vec![0.0, 0.1];
+    temp
 }
