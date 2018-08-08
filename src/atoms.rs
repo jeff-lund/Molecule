@@ -127,14 +127,16 @@ pub fn reduce_molecule(mol: &Molecule) -> Molecule {
 }
 
 pub fn edges(mol: &Molecule) -> (Vec<(usize, usize)>) {
-    let mut ret: Vec<(usize, usize)> = Vec::new()
+    let mut ret: Vec<(usize, usize)> = Vec::new();
     let len = mol.dim().0;
     for i in 0..len {
         for j in 0.. len {
-            for 0..mol[[i, j]] {
+            for _ in 0..mol[[i, j]] {
                 ret.push((i, j));
             }
         }
     }
+    println!("edges");
+    println!("{:?}", ret);
     ret
 }
