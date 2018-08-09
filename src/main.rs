@@ -28,9 +28,11 @@ fn main() -> std::io::Result<()> {
 
     // Generate random molecule population
     let mut population: Vec<Molecule> = Vec::new();
+    let mut tot = 0;
     let mut pop = 0;
-    while pop < 1000 {
+    while pop < 10 {
         let m = create_test_molecule(&atoms, bonds);
+        tot += 1;
         match m {
             Some(x) => {
                 population.push(x);
@@ -39,7 +41,7 @@ fn main() -> std::io::Result<()> {
             None => (),
         }
     }
-    println!("Added {} molecules to population", pop);
+    println!("Added {} molecules to population. Total molecules created: {}", pop, tot);
     // START evolution
     // calculate chemical shifts
 

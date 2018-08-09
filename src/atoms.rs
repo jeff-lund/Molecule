@@ -90,24 +90,42 @@ pub fn connected(molecule: &Molecule, len: usize) -> bool {
     }
     components == 1
 }
+
+// checks that each atom in a molecule is not exceeding its maximum possible bonds
+// C: 4 | O: 2 | N: 3 | Br: 1 | Cl: 1
+pub fn check_bonds(mol: &Molecule, atoms: &Vec<&str>) -> bool {
+    // this is dumb pass in hashtable
+    let num_carbon = atoms.iter().filter(|&c| *c == "C").count();
+    let num_oxygen = atoms.iter().filter(|&c| *c == "O").count();
+    let num_nitrogen = atoms.iter().filter(|&c| *c == "N").count();
+    let num_chlorine = atoms.iter().filter(|&c| *c == "Cl").count();
+    let num_bromine = atoms.iter().filter(|&c| *c == "Br").count();
+    
+
+}
 // Randomly creates sample molecule
 // Needs tests for appropriate number of bonds and connectedness
+// A chromosome is the concatenation of the values from the upper 
+// triangle exluding the diagonal
+// TODO This algorithm is super inefficient find better way to generate graph
 pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (i32, i32)) -> Option<Molecule> {
     let mut rng = thread_rng();
     let l = atoms.len() as usize;
     let num_bonds = bonds.1;
     let chromosome_length: usize = (l * l - l)/2;
     let mut chromosome: Chromosome = vec![0; chromosome_length];
-
-    let mut x: usize;
+    
+    let mut r: usize;
     for _ in 0..num_bonds {
-        x = rng.gen_range(0, chromosome_length);
-        while chromosome[x] > 4 {
-            x = rng.gen_range(0, chromosome_length);
+        r = rng.gen_range(0, chromosome_length);
+        // can't have more than a triple bond to any atom
+        while chromosome[x] > 3 {
+            r = rng.gen_range(0, chromosome_length);
         }
-        chromosome[x] += 1;
+        chromosome[r] += 1;
     }
     let ret = chromosome_to_molecule(&chromosome, l);
+
     if connected(&ret, l) {
         Some(ret)
     } else {
