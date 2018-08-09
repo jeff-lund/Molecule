@@ -29,19 +29,35 @@ fn main() -> std::io::Result<()> {
     // Generate random molecule population
     let mut population: Vec<Molecule> = Vec::new();
     let mut tot = 0;
+    let mut fcon = 0;
+    let mut fbond = 0;
+    let mut failed_both = 0;
     let mut pop = 0;
-    while pop < 10 {
+    while pop < 256 {
         let m = create_test_molecule(&atoms, bonds);
+        let mut bond_flag = 0;
+        let mut con_flag = 0;
         tot += 1;
-        match m {
-            Some(x) => {
-                population.push(x);
+        if !connected(&m.structure) {
+            fcon += 1;
+            con_flag = 1;
+        }
+        if !check_bonds(&m.structure, &atoms) {
+            fbond += 1;
+            bond_flag = 1;
+        }
+        if con_flag == 0 && bond_flag == 0 {
+                population.push(m);
                 pop += 1;
-            }
-            None => (),
+        }
+        if con_flag == 1 && bond_flag == 1 {
+            failed_both += 1;
         }
     }
     println!("Added {} molecules to population. Total molecules created: {}", pop, tot);
+    println!("Failed bond check: {}", fbond);
+    println!("Failed connected: {}", fcon);
+    println!("Failed both: {}", failed_both);
     // START evolution
     // calculate chemical shifts
 
