@@ -27,7 +27,12 @@ pub fn parse_elemental_analysis(formula: &str) -> HashMap<&str, i32> {
     }
     chemical_formula
 }
-// Collects input peak values into vector
+#[test]
+fn test_parse_elemental_analysis() {
+    let answer: HashMap<&str, i32> = [("C", 4), ("H", 4), ("O", 2), ("Cl", 1), ("Br", 2), ("N", 2)].iter().cloned().collect();
+    assert_eq!(parse_elemental_analysis("C4H4O2Cl1Br2N2"), answer);
+}
+/// Collects input chemical shift peak values into vector
 pub fn parse_peaks(peaks: &str) -> Vec<f32> {
     let mut ret: Vec<f32> = Vec::new();
     let buf = peaks.split(',');
@@ -38,21 +43,15 @@ pub fn parse_peaks(peaks: &str) -> Vec<f32> {
     ret
 }
 
-pub fn symmetrical_carbons(chemical_formula: &HashMap<&str, i32>,
-        chemical_peaks: &Vec<f32>) -> bool {
+/// Returns true if there is a peak in the input chemical shift peak data for each carbon in the chemical formula
+pub fn symmetrical_carbons(chemical_formula: &HashMap<&str, i32>, chemical_peaks: &Vec<f32>) -> bool {
     let ncarbons = chemical_formula.get("C").expect("No carbons present in formula");
     let length = chemical_peaks.len() as i32;
-    if *ncarbons == length {
-        false
-    } else if *ncarbons > length {
-        true
-    } else {
-        panic!("Symmetrical carbons: cannot have more peaks than carbons");
-    }
+    *ncarbons > length
 }
 
-// Creates vec with individual atoms in C - O - N - Cl - Br order.
-// Hydrogen atoms are not included in this vector
+/// Creates vector with individual heavy atoms in C - O - N - Cl - Br order.
+/// Hydrogen atoms are not included in this vector
 // Rework ugly copy paste code
 pub fn get_atoms(chemical_formula: &HashMap<&str, i32>) -> Vec<&'static str> {
     let mut v: Vec<&str> = Vec::new();
@@ -78,12 +77,12 @@ pub fn get_atoms(chemical_formula: &HashMap<&str, i32>) -> Vec<&'static str> {
     }
     v
 }
-// Returns (total bonds, assigned bonds)
-// When building matrices only heavy atoms are assigned, hydrogen is ignored
-// The total bonds are needed to check the final structure has exactly the number of
-// open bonds to fill in with hydrogens
-// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
-// assigned bonds = total bonds - hydrogen
+/// Returns (total bonds, assigned bonds)
+/// When building matrices only heavy atoms are assigned, hydrogen is ignored
+/// The total bonds are needed to check the final structure has exactly the number of
+/// open bonds to fill in with hydrogens
+/// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
+/// assigned bonds = total bonds - hydrogen
 pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (i32, i32) {
     let mut total_bonds = 0;
     match chemical_formula.get("C") {

@@ -40,164 +40,176 @@ pub struct Molecule {
     pub structure: Structure,
     pub kind: Vec<FunctionalGroup>,
     pub chemical_shifts: Vec<f32>,
-    pub fitness: Option<f32>,
+    pub fitness: f32,
 }
-
+/// Compare and order molecules based off of their fitness
+impl PartialEq for Molecule {
+    fn eq(&self, other: &Molecule) -> bool {
+        self.fitness == other.fitness
+    }
+}
+impl Eq for Molecule {}
+impl PartialOrd for Molecule {
+    fn partial_cmp(&self, other: &Molecule) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Molecule {
+    fn cmp(&self, other: &Molecule) -> Ordering {
+        self.fitness.cmp(&other.fitness))
+    }
+}
 impl Molecule {
     pub fn new(structure: Structure) -> Self {
         let kind: Vec<FunctionalGroup> = Vec::new();
         let chemical_shifts: Vec<f32> = Vec::new();
-        Molecule {structure, kind, chemical_shifts, fitness: None}
+        Molecule {structure, kind, chemical_shifts, fitness: -999.9}
     }
     // Calculates fitness of a molecule by taking RMSD of chemical shifts of carbon atoms
     // fitness = sqrt( 1/N sum((chem_shift_calc - chem_shift_exp)^2))
     // Input: chemical peaks data
-    pub fn fitness(mut self, experimental: &Vec<f32>) {
+    pub fn fitness(&mut self, experimental: &Vec<f32>) {
         assert_eq!(self.chemical_shifts.len(), experimental.len(), "Peak data and chemical shifts should both represent the total number of carbon atoms in molecule.");
         let zipped = self.chemical_shifts.iter().zip(experimental.iter());
         self.fitness = Some((1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt());
     }
-}
-
-/// Assigns functional groups to each carbon.
-// this needs to be broken up and cleaned up
-pub fn assign_carbons(molecule: &mut Molecule, atoms: &Vec<&str>) {
-    let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
-    let edge_list = edges(&molecule.structure);
-    for index in 0..num_carbons {
-        let mut primary_edges = HashSet::new();
-        let mut hydrogen_count: i32;
-        let mut dupes = HashSet::new();
-        let mut alcohol = false;
-        // get primary edges
-        for (n1, n2) in edge_list.iter() {
-            if *n1 == index {
-                if !primary_edges.insert((*n1, *n2)) {
-                    dupes.insert(*n2);
-                }
-            } else if *n2 == index {
-                if !primary_edges.insert((*n2, *n1)) {
-                    dupes.insert(*n1);
-                }
-            }
-        }
-        // remove anything in dupes vec from primary edges, should only contain single bonded atoms
-        primary_edges.retain(|&(x, y)| !dupes.contains(&y));
-        hydrogen_count = 4 - primary_edges.len() as i32 - (dupes.len() * 2) as i32;
-        if hydrogen_count < 0 {
-            println!("dupes: {:?}", dupes);
-            println!("primary_edges{:?}", primary_edges);
-            println!("{:?}", molecule.structure);
-            panic!("Negative hydrogen bonds");
-        }
-        let mut secondary_atoms = Vec::new();
-        for (a, b) in primary_edges.iter() {
-            secondary_atoms.push(atoms[*b]);
-            if atoms[*b] == "O" {
-                alcohol = edge_list.iter().filter(|(x, y)| (x != a && y == b) || (x == b && y != a)).count() == 0;
-            }
-        }
-        // assign if double bonds present
-        if !dupes.is_empty() {
-            let mut carbonyl = false;
-            let mut alkene = false;
-            let mut alkyne = false;
-            let mut imine = false;
-            let mut amide = false;
-            let mut cyanide = false;
-            for d in dupes.iter() {
-                match atoms[*d] {
-                    "O" => carbonyl = true,
-                    "N" => match imine {
-                        true => cyanide = true,
-                        false => imine = true,
+    pub fn clear_carbons(&mut self) {
+        self.kind.clear();
+    }
+    /// Assigns functional groups to each carbon.
+    // this needs to be broken up and cleaned up
+    pub fn assign_carbons(&mut self, atoms: &Vec<&str>) {
+        let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
+        let edge_list = edges(&self.structure);
+        for index in 0..num_carbons {
+            let mut primary_edges = HashSet::new();
+            let mut hydrogen_count;
+            let mut dupes = HashSet::new();
+            let mut alcohol = false;
+            // get primary edges
+            for (n1, n2) in edge_list.iter() {
+                if *n1 == index {
+                    if !primary_edges.insert((*n1, *n2)) {
+                        dupes.insert(*n2);
                     }
-                    "C" => match alkene {
-                        true => alkyne = true,
-                        false => alkene = true,
+                } else if *n2 == index {
+                    if !primary_edges.insert((*n2, *n1)) {
+                        dupes.insert(*n1);
                     }
-                    _ => panic!("unexpected element in duplicate matching"),
                 }
             }
-            // match triple bonds
-            if cyanide {
-                 molecule.kind.push(Cyanide);
-                 continue;
-             }
-            if alkyne {
-                molecule.kind.push(Alkyne);
-                continue;
+            // remove anything in dupes vec from primary edges, should only contain single bonded atoms
+            primary_edges.retain(|&(x, y)| !dupes.contains(&y));
+            hydrogen_count = 4 - primary_edges.len() - (dupes.len() * 2);
+            let mut secondary_atoms = Vec::new();
+            for (a, b) in primary_edges.iter() {
+                secondary_atoms.push(atoms[*b]);
+                if atoms[*b] == "O" {
+                    alcohol = edge_list.iter().filter(|(x, y)| (x != a && y == b) || (x == b && y != a)).count() == 0;
+                }
             }
-            // match imine - could go more specific if needed
-            if imine {
-                molecule.kind.push(Imine);
-                continue;
-            }
-            if alkene {
-                molecule.kind.push(Alkene);
-                continue;
-            }
-            // match carbonyl
-            if carbonyl {
-                // carboxylic acid or ester or amide
-                if alcohol {
-                    molecule.kind.push(CarboxylicAcid);
+            // assign if double bonds present
+            if !dupes.is_empty() {
+                let mut carbonyl = false;
+                let mut alkene = false;
+                let mut alkyne = false;
+                let mut imine = false;
+                let mut amide = false;
+                let mut cyanide = false;
+                for d in dupes.iter() {
+                    match atoms[*d] {
+                        "O" => carbonyl = true,
+                        "N" => match imine {
+                            true => cyanide = true,
+                            false => imine = true,
+                        }
+                        "C" => match alkene {
+                            true => alkyne = true,
+                            false => alkene = true,
+                        }
+                        _ => panic!("unexpected element in duplicate matching"),
+                    }
+                }
+                // match triple bonds
+                if cyanide {
+                     self.kind.push(Cyanide);
+                     continue;
+                 }
+                if alkyne {
+                    self.kind.push(Alkyne);
                     continue;
                 }
-                for (a, b) in primary_edges.iter() {
-                    if atoms[*b] == "O" {
-                        molecule.kind.push(Ester);
-                        continue;
-                    } else if atoms[*b] == "N" {
-                        molecule.kind.push(Amide);
+                // match imine - could go more specific if needed
+                if imine {
+                    self.kind.push(Imine);
+                    continue;
+                }
+                if alkene {
+                    self.kind.push(Alkene);
+                    continue;
+                }
+                // match carbonyl
+                if carbonyl {
+                    // carboxylic acid or ester or amide
+                    if alcohol {
+                        self.kind.push(CarboxylicAcid);
                         continue;
                     }
-                }
-                // ketone or aldehyde or acyl halide
-                if hydrogen_count == 0 {
                     for (a, b) in primary_edges.iter() {
-                        if atoms[*b] == "Cl" {
-                            molecule.kind.push(AcylChloride);
+                        if atoms[*b] == "O" {
+                            self.kind.push(Ester);
                             continue;
-                        } else if atoms[*b] == "Br" {
-                            molecule.kind.push(AcylBromide);
+                        } else if atoms[*b] == "N" {
+                            self.kind.push(Amide);
                             continue;
                         }
                     }
-                    molecule.kind.push(Ketone);
-                    continue;
-                } else {
-                    molecule.kind.push(Aldehyde);
-                    continue;
+                    // ketone or aldehyde or acyl halide
+                    if hydrogen_count == 0 {
+                        for (a, b) in primary_edges.iter() {
+                            if atoms[*b] == "Cl" {
+                                self.kind.push(AcylChloride);
+                                continue;
+                            } else if atoms[*b] == "Br" {
+                                self.kind.push(AcylBromide);
+                                continue;
+                            }
+                        }
+                        self.kind.push(Ketone);
+                        continue;
+                    } else {
+                        self.kind.push(Aldehyde);
+                        continue;
+                    }
                 }
             }
-        }
-        // if only single bonds present
-        // only bonded to carbons
-        if secondary_atoms.iter().filter(|a| *a != &"C").count() == 0 {
-            match hydrogen_count {
-                3 => molecule.kind.push(CH3),
-                2 => molecule.kind.push(CH2),
-                1 => molecule.kind.push(CH),
-                0 => molecule.kind.push(C),
-                _ => panic!("assign_bonds: Too many hydrogens!"),
+            // if only single bonds present
+            // only bonded to carbons
+            if secondary_atoms.iter().filter(|a| *a != &"C").count() == 0 {
+                match hydrogen_count {
+                    3 => self.kind.push(CH3),
+                    2 => self.kind.push(CH2),
+                    1 => self.kind.push(CH),
+                    0 => self.kind.push(C),
+                    _ => panic!("assign_bonds: Too many hydrogens!"),
+                }
+                continue;
             }
-            continue;
+            if secondary_atoms.contains(&"Cl") {
+                self.kind.push(CCl);
+                continue;
+            } else if secondary_atoms.contains(&"Br") {
+                self.kind.push(CBr);
+                continue;
+            } else if secondary_atoms.contains(&"O") {
+                self.kind.push(CO);
+                continue;
+            } else if secondary_atoms.contains(&"N") {
+                self.kind.push(CN);
+                continue;
+            }
+            panic!("No molecular assignment made");
         }
-        if secondary_atoms.contains(&"Cl") {
-            molecule.kind.push(CCl);
-            continue;
-        } else if secondary_atoms.contains(&"Br") {
-            molecule.kind.push(CBr);
-            continue;
-        } else if secondary_atoms.contains(&"O") {
-            molecule.kind.push(CO);
-            continue;
-        } else if secondary_atoms.contains(&"N") {
-            molecule.kind.push(CN);
-            continue;
-        }
-        panic!("No molecular assignment made")
     }
 }
 
@@ -315,33 +327,31 @@ pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (i32, i32)) -> Molecule {
         }
         chromosome[r] += 1;
     }
-    let ret = Molecule::new(chromosome_to_structure(&chromosome, l));
-    /*
-    if check_bonds(&ret.structure, &atoms) && connected(&ret.structure) {
-        Some(ret)
-    } else {
-        None
-    }*/
-    ret // for testing only
+    Molecule::new(chromosome_to_structure(&chromosome, l))
 }
 
 // reduce molecule to eliminate double/triple bonds
 pub fn reduce_structure(structure: &Structure) -> Structure {
-    let mut chrom = structure_to_chromosome(structure);
-    for i in 0..chrom.len() {
-        match chrom[i] {
-            0 => (),
-            _ => chrom[i] = 1,
+    let len = structure.dim().0;
+    let mut reduced = Structure::zeros((len, len));
+    for i in 0..len {
+        for j in 0..len {
+            if structure[[i,j]] > 0 {
+                reduced[[i, j]] = 1;
+            }
         }
     }
-    chromosome_to_structure(&chrom, structure.dim().0)
+    reduced
 }
 
+/// Transforms an adjacency matrix into an edge list
+/// The lower triangle is excluded as it is a mirror of the upper triangle
 pub fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
     let mut ret: Vec<(usize, usize)> = Vec::new();
     let len = structure.dim().0;
     for i in 0..len {
         for j in 0.. len {
+            // only grab edges in the upper triangle
             if j <= i { continue; }
             for _ in 0..structure[[i, j]] {
                 ret.push((i, j));
@@ -350,13 +360,13 @@ pub fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
     }
     ret
 }
-// need to bring chem shift in tables
 
-// detects if rings are present in molecule
-// returns None if no rings are present
-// -returns vector containing carbons in ring if cycle is present
-// nodes contains nodes that are still possibilities for existing in a rings
-// singletons contains nodes that are not in a ring
+/// Detects if rings are present in molecule
+/// Returns None if no rings are present
+/// Returns vector containing carbons in ring if cycle is present
+/// or None if no rings(cycles) are present
+/// Nodes contains nodes that are still possibilities for existing in a ring
+/// Singletons contains nodes that are not in a ring
 pub fn rings_present(structure: &Structure) -> Option<Vec<(usize, usize)>> {
     let len = structure.dim().0;
     let mut nodes: Vec<usize> = Vec::new();
@@ -398,18 +408,22 @@ fn test_rings_present() {
     assert_eq!(rings_present(&test2), Some(vec![(0,4),(0,5),(4,5)]));
 }
 
+/// Computes chemical shift of each carbon in the structure
 pub fn compute_shift(
     molecule: &Molecule, atoms: &Vec<&str>,
     chemical_formula: &HashMap<&str, i32>
 ) -> Vec<f32> {
-    /*
-    // find longest carbon chain
-    let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
-    let reduced_mol = reduce_molecule(molecule.structure);
-    let r = rings_present(&reduced_mol);
-
-
-    let temp: Vec<f32> = vec![0.0];
-    temp */
+    unimplemented!();
+}
+/// Generates new child generation from parent population
+pub fn generate_children(population: Vec<Molecule>, total: u64) -> Vec<Molecule> {
+    unimplemented!();
+}
+/// Mutates a random single bond in a molecule
+pub fn mutate_child(chromosome: &mut Chromsome, atoms: &Vec<&str>) {
+    unimplemented!();
+}
+/// recombine two parents to form a child chromosome
+pub fn recombine(p1: &Molecule, p2: &Molecule, atoms: &Vec<&str>) -> Molecule {
     unimplemented!();
 }
