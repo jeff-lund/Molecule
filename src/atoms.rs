@@ -15,6 +15,7 @@ pub enum FunctionalGroup {
     CH3,
     CH2,
     CH,
+    C,
     CCl,
     CBr,
     CN,
@@ -48,6 +49,14 @@ impl Molecule {
         let chemical_shifts: Vec<f32> = Vec::new();
         Molecule {structure, kind, chemical_shifts, fitness: None}
     }
+    // Calculates fitness of a molecule by taking RMSD of chemical shifts of carbon atoms
+    // fitness = sqrt( 1/N sum((chem_shift_calc - chem_shift_exp)^2))
+    // Input: chemical peaks data
+    pub fn fitness(mut self, experimental: &Vec<f32>) {
+        assert_eq!(self.chemical_shifts.len(), experimental.len(), "Peak data and chemical shifts should both represent the total number of carbon atoms in molecule.");
+        let zipped = self.chemical_shifts.iter().zip(experimental.iter());
+        self.fitness = Some((1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt());
+    }
 }
 
 /// Assigns functional groups to each carbon.
@@ -57,24 +66,30 @@ pub fn assign_carbons(molecule: &mut Molecule, atoms: &Vec<&str>) {
     let edge_list = edges(&molecule.structure);
     for index in 0..num_carbons {
         let mut primary_edges = HashSet::new();
-        let mut hydrogen_count;
-        let mut dupes = Vec::new();
+        let mut hydrogen_count: i32;
+        let mut dupes = HashSet::new();
         let mut alcohol = false;
         // get primary edges
         for (n1, n2) in edge_list.iter() {
             if *n1 == index {
                 if !primary_edges.insert((*n1, *n2)) {
-                    dupes.push(*n2);
+                    dupes.insert(*n2);
                 }
             } else if *n2 == index {
                 if !primary_edges.insert((*n2, *n1)) {
-                    dupes.push(*n1);
+                    dupes.insert(*n1);
                 }
             }
         }
         // remove anything in dupes vec from primary edges, should only contain single bonded atoms
         primary_edges.retain(|&(x, y)| !dupes.contains(&y));
-        hydrogen_count = 4 - primary_edges.len() - (dupes.len() * 2);
+        hydrogen_count = 4 - primary_edges.len() as i32 - (dupes.len() * 2) as i32;
+        if hydrogen_count < 0 {
+            println!("dupes: {:?}", dupes);
+            println!("primary_edges{:?}", primary_edges);
+            println!("{:?}", molecule.structure);
+            panic!("Negative hydrogen bonds");
+        }
         let mut secondary_atoms = Vec::new();
         for (a, b) in primary_edges.iter() {
             secondary_atoms.push(atoms[*b]);
@@ -164,6 +179,7 @@ pub fn assign_carbons(molecule: &mut Molecule, atoms: &Vec<&str>) {
                 3 => molecule.kind.push(CH3),
                 2 => molecule.kind.push(CH2),
                 1 => molecule.kind.push(CH),
+                0 => molecule.kind.push(C),
                 _ => panic!("assign_bonds: Too many hydrogens!"),
             }
             continue;

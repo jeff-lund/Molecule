@@ -12,6 +12,9 @@ use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 
+const DEBUG: bool = true;
+const POPULATION: u32 = 64;
+
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
     let f = args().nth(1).expect("No file argument given");
@@ -33,7 +36,7 @@ fn main() -> std::io::Result<()> {
     let mut fbond = 0;
     let mut failed_both = 0;
     let mut pop = 0;
-    while pop < 256 {
+    while pop < POPULATION {
         let m = create_test_molecule(&atoms, bonds);
         let mut bond_flag = 0;
         let mut con_flag = 0;
@@ -58,6 +61,11 @@ fn main() -> std::io::Result<()> {
     println!("Failed bond check: {}", fbond);
     println!("Failed connected: {}", fcon);
     println!("Failed both: {}", failed_both);
+
+    for i in 0..10 {
+        assign_carbons(&mut population[i], &atoms);
+        println!("{:?}", population[i].kind);
+    }
     // START evolution
     // calculate chemical shifts
 
@@ -69,18 +77,19 @@ fn main() -> std::io::Result<()> {
     // randomly mutate new children
 
     // END evolution
-    // DEBUG PRINTING REMOVE LATER
-    println!("********************DEBUG*************************************");
-    println!("{:?}", atoms);
-    println!("IHD {}", ihd);
-    println!("{:?}", chemical_formula);
-    println!("{:?}", peaks);
-    if symmetrical_carbons(&chemical_formula, &peaks) {
-        println!("Symmetric carbons present");
+    if DEBUG == true {
+        // DEBUG PRINTING REMOVE LATER
+        println!("********************DEBUG*************************************");
+        println!("{:?}", atoms);
+        println!("IHD {}", ihd);
+        println!("{:?}", chemical_formula);
+        println!("{:?}", peaks);
+        if symmetrical_carbons(&chemical_formula, &peaks) {
+            println!("Symmetric carbons present");
+        }
+        println!("Bonds - Total: {} | Assigned: {}", bonds.0, bonds.1);
+        println!("********************END DEBUG*********************************");
+        // END DEBUG PRINTING`
     }
-    println!("Bonds - Total: {} | Assigned: {}", bonds.0, bonds.1);
-    println!("********************END DEBUG*********************************");
-    // END DEBUG PRINTING
-
     Ok(())
 }
