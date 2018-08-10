@@ -6,6 +6,7 @@ use atoms::rand::prelude::*;
 use atoms::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::cmp::Ordering;
 
 pub type Structure = Array2<u8>;
 pub type Chromosome = Vec<u8>;
@@ -42,24 +43,10 @@ pub struct Molecule {
     pub chemical_shifts: Vec<f32>,
     pub fitness: f32,
 }
-/// Compare and order molecules based off of their fitness
-impl PartialEq for Molecule {
-    fn eq(&self, other: &Molecule) -> bool {
-        self.fitness == other.fitness
-    }
-}
-impl Eq for Molecule {}
-impl PartialOrd for Molecule {
-    fn partial_cmp(&self, other: &Molecule) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Molecule {
-    fn cmp(&self, other: &Molecule) -> Ordering {
-        self.fitness.cmp(&other.fitness))
-    }
-}
+
+// fitness init is ugly
 impl Molecule {
+    /// Creates new Molecule from a given structure. Kind and chemical shift vectors are initialized empty
     pub fn new(structure: Structure) -> Self {
         let kind: Vec<FunctionalGroup> = Vec::new();
         let chemical_shifts: Vec<f32> = Vec::new();
@@ -71,10 +58,13 @@ impl Molecule {
     pub fn fitness(&mut self, experimental: &Vec<f32>) {
         assert_eq!(self.chemical_shifts.len(), experimental.len(), "Peak data and chemical shifts should both represent the total number of carbon atoms in molecule.");
         let zipped = self.chemical_shifts.iter().zip(experimental.iter());
-        self.fitness = Some((1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt());
+        self.fitness = (1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt();
     }
-    pub fn clear_carbons(&mut self) {
+    /// Resets Molecule to its initial state
+    pub fn clear(&mut self) {
         self.kind.clear();
+        self.chemical_shifts.clear();
+        self.fitness = -999.0
     }
     /// Assigns functional groups to each carbon.
     // this needs to be broken up and cleaned up
@@ -409,10 +399,8 @@ fn test_rings_present() {
 }
 
 /// Computes chemical shift of each carbon in the structure
-pub fn compute_shift(
-    molecule: &Molecule, atoms: &Vec<&str>,
-    chemical_formula: &HashMap<&str, i32>
-) -> Vec<f32> {
+pub fn compute_shifts(molecule: &Molecule, atoms: &Vec<&str>, chemical_formula: &HashMap<&str, i32>)
+-> Vec<f32> {
     unimplemented!();
 }
 /// Generates new child generation from parent population
@@ -420,7 +408,7 @@ pub fn generate_children(population: Vec<Molecule>, total: u64) -> Vec<Molecule>
     unimplemented!();
 }
 /// Mutates a random single bond in a molecule
-pub fn mutate_child(chromosome: &mut Chromsome, atoms: &Vec<&str>) {
+pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>) {
     unimplemented!();
 }
 /// recombine two parents to form a child chromosome
