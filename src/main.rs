@@ -13,7 +13,6 @@ use std::fs::File;
 use std::io::prelude::*;
 
 const DEBUG: bool = true;
-const POPULATION: u32 = 64;
 
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer

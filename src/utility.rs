@@ -77,42 +77,6 @@ pub fn get_atoms(chemical_formula: &HashMap<&str, i32>) -> Vec<&'static str> {
     }
     v
 }
-/// Returns (total bonds, assigned bonds)
-/// When building matrices only heavy atoms are assigned, hydrogen is ignored
-/// The total bonds are needed to check the final structure has exactly the number of
-/// open bonds to fill in with hydrogens
-/// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
-/// assigned bonds = total bonds - hydrogen
-pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (i32, i32) {
-    let mut total_bonds = 0;
-    match chemical_formula.get("C") {
-        Some(n) => total_bonds += n * 4,
-        None => (),
-    }
-    match chemical_formula.get("O") {
-        Some(n) => total_bonds += n * 2,
-        None => (),
-    }
-    match chemical_formula.get("N") {
-        Some(n) => total_bonds += n * 3,
-        None => (),
-    }
-    match chemical_formula.get("Cl") {
-        Some(n) => total_bonds += n,
-        None => (),
-    }
-    match chemical_formula.get("Br") {
-        Some(n) => total_bonds += n,
-        None => (),
-    }
-    let h: i32 = match chemical_formula.get("H") {
-        Some(n) => *n,
-        None => 0,
-    };
-    total_bonds = (total_bonds + h) / 2;
-    let assigned_bonds = total_bonds - h;
-    (total_bonds, assigned_bonds)
-}
 
 // PROBABLY DONT NEED THIS
 // Computes the index of gen deficiency  to find level of unsaturation
