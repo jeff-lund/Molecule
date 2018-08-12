@@ -1,7 +1,6 @@
 // Copyright (c) 2018 Jeff Lund
 #![allow(unused_imports)]
 #![allow(dead_code)]
-//#[macro_use(s)]
 mod utility;
 use utility::*;
 mod atoms;

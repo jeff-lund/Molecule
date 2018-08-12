@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-#![allow(unused_variables)]
 extern crate ndarray;
 extern crate rand;
 use atoms::rand::prelude::*;
@@ -7,8 +5,8 @@ use atoms::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::cmp::Ordering::Less;
-pub const POPULATION: usize = 64;
-
+pub const POPULATION: usize = 256;
+pub const MUTATION_PROBABILITY: f64 = 0.05;
 pub type Structure = Array2<u32>;
 pub type Chromosome = Vec<u32>;
 
@@ -90,7 +88,7 @@ impl Molecule {
                 }
             }
             // remove anything in dupes vec from primary edges, should only contain single bonded atoms
-            primary_edges.retain(|&(x, y)| !dupes.contains(&y));
+            primary_edges.retain(|&(_x, y)| !dupes.contains(&y));
             hydrogen_count = 4 - primary_edges.len() - (dupes.len() * 2);
             let mut secondary_atoms = Vec::new();
             for (a, b) in primary_edges.iter() {
@@ -105,7 +103,6 @@ impl Molecule {
                 let mut alkene = false;
                 let mut alkyne = false;
                 let mut imine = false;
-                let mut amide = false;
                 let mut cyanide = false;
                 for d in dupes.iter() {
                     match atoms[*d] {
@@ -146,7 +143,7 @@ impl Molecule {
                         self.kind.push(CarboxylicAcid);
                         continue;
                     }
-                    for (a, b) in primary_edges.iter() {
+                    for (_a, b) in primary_edges.iter() {
                         if atoms[*b] == "O" {
                             self.kind.push(Ester);
                             continue;
@@ -157,7 +154,7 @@ impl Molecule {
                     }
                     // ketone or aldehyde or acyl halide
                     if hydrogen_count == 0 {
-                        for (a, b) in primary_edges.iter() {
+                        for (_a, b) in primary_edges.iter() {
                             if atoms[*b] == "Cl" {
                                 self.kind.push(AcylChloride);
                                 continue;
@@ -202,6 +199,10 @@ impl Molecule {
             panic!("No molecular assignment made");
         }
     }
+    /// Computes chemical shift of each carbon in the structure
+    pub fn compute_shifts(&mut self, _atoms: &Vec<&str>, _chemical_formula: &HashMap<&str, i32>) {
+        unimplemented!();
+    }
 }
 
 /// Returns the length of a Structure.
@@ -213,7 +214,7 @@ pub fn s_len(s: &Structure) -> usize {
 /// Retruns the length of the molecule matrix derived from this chromosome
 /// Derived from the quadratic equation
 pub fn molecule_len(chromosome: &Chromosome) -> usize {
-    ((1.0 + (1.0 + 8.0 * chromosome.len() as f32)) / 2.0) as usize
+    ((1.0 + (1.0 + 8.0 * chromosome.len() as f32).sqrt()) / 2.0) as usize
 }
 
 /// Returns (total bonds, assigned bonds)
@@ -222,30 +223,30 @@ pub fn molecule_len(chromosome: &Chromosome) -> usize {
 /// open bonds to fill in with hydrogens
 /// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
 /// assigned bonds = total bonds - hydrogen
-pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (i32, i32) {
+pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (u32, u32) {
     let mut total_bonds = 0;
     match chemical_formula.get("C") {
-        Some(n) => total_bonds += n * 4,
+        Some(n) => total_bonds += *n as u32 * 4,
         None => (),
     }
     match chemical_formula.get("O") {
-        Some(n) => total_bonds += n * 2,
+        Some(n) => total_bonds += *n as u32 * 2,
         None => (),
     }
     match chemical_formula.get("N") {
-        Some(n) => total_bonds += n * 3,
+        Some(n) => total_bonds += *n as u32 * 3,
         None => (),
     }
     match chemical_formula.get("Cl") {
-        Some(n) => total_bonds += n,
+        Some(n) => total_bonds += *n as u32,
         None => (),
     }
     match chemical_formula.get("Br") {
-        Some(n) => total_bonds += n,
+        Some(n) => total_bonds += *n as u32,
         None => (),
     }
-    let h: i32 = match chemical_formula.get("H") {
-        Some(n) => *n,
+    let h = match chemical_formula.get("H") {
+        Some(n) => *n as u32,
         None => 0,
     };
     total_bonds = (total_bonds + h) / 2;
@@ -341,7 +342,7 @@ fn test_check_bonds_panic() {
 // triangle exluding the diagonal
 // TODO This algorithm is super inefficient find better way to generate graph
 // most failures are in bonding checks
-pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (i32, i32)) -> Molecule {
+pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (u32, u32)) -> Molecule {
     let mut rng = thread_rng();
     let l = atoms.len();
     let num_bonds = bonds.1;
@@ -438,15 +439,10 @@ fn test_rings_present() {
     assert_eq!(rings_present(&test2), Some(vec![(0,4),(0,5),(4,5)]));
 }
 
-/// Computes chemical shift of each carbon in the structure
-pub fn compute_shifts(molecule: &Molecule, atoms: &Vec<&str>, chemical_formula: &HashMap<&str, i32>)
--> Vec<f32> {
-    unimplemented!();
-}
 /// Generates new child generation from parent population
 /// Keeps best half of parent population then recombines to form children
 /// Returns child population
-pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bonds: i32) -> Vec<Molecule> {
+pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bonds: u32) -> Vec<Molecule> {
     let mut children: Vec<Molecule> = Vec::new();
     let mut rng = thread_rng();
     // sort population
@@ -470,28 +466,34 @@ pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bo
 // TODO alter recombination probabilitoes based off of relative fitness
 // TODO alter RP iteritively throughout generations
 // TODO could send in RP and MP to iter alter thoughout gens
-pub fn recombine(p1: &Molecule, p2: &Molecule, atoms: &Vec<&str>, num_bonds: i32) -> Molecule {
+pub fn recombine(p1: &Molecule, p2: &Molecule, atoms: &Vec<&str>, num_bonds: u32) -> Molecule {
     let mut rng = thread_rng();
     let mut rand;
     let mut child: Chromosome = Vec::new();
-    let chrom1 = structure_to_chromosome(&p1.structure);
-    let chrom2 = structure_to_chromosome(&p2.structure);
-    for i in 0..chrom1.len() {
-        rand = rng.gen_range(0, 2);
-        match rand {
-            0 => child.push(chrom1[i]),
-            1 => child.push(chrom2[i]),
-            _ => panic!("recombine: generated rand out of range"),
+    let chrom0 = structure_to_chromosome(&p1.structure);
+    let chrom1 = structure_to_chromosome(&p2.structure);
+    loop {
+        for i in 0..chrom1.len() {
+            rand = rng.gen_range(0, 2);
+            match rand {
+                0 => child.push(chrom0[i]),
+                1 => child.push(chrom1[i]),
+                _ => panic!("recombine: generated rand out of range"),
+            }
         }
+        correct_child(&mut child, &chrom0, &chrom1, num_bonds);
+        if rng.gen_bool(MUTATION_PROBABILITY) {
+            mutate_child(&mut child, atoms, num_bonds)
+        }
+        if validate_chromosome(&child, atoms, num_bonds) {
+            break;
+        }
+        child.clear();
     }
-    if !validate_chromosome(&child, atoms, num_bonds) {
-        correct_chromosome(&mut child, atoms, num_bonds);
-    }
-    // mutate
     Molecule::new(chromosome_to_structure(&child))
 }
 /// Mutates a random single bond in a molecule
-pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: i32) {
+pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: u32) {
     let mut rng = thread_rng();
     let l = chromosome.len();
     let mut gene_1;
@@ -513,10 +515,10 @@ pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: i
     }
 }
 /// Validate the overall correctness of a chromosome
-fn validate_chromosome(chromosome: &Chromosome, atoms: &Vec<&str>, num_bonds: i32) -> bool {
+fn validate_chromosome(chromosome: &Chromosome, atoms: &Vec<&str>, num_bonds: u32) -> bool {
     // check proper number of bonds exist
     let bonds: u32 = chromosome.iter().sum();
-    if bonds != num_bonds as u32 {
+    if bonds != num_bonds {
         return false;
     }
     // check to degree of each atom for bounds and connectedness of the moleculer structure
@@ -524,6 +526,7 @@ fn validate_chromosome(chromosome: &Chromosome, atoms: &Vec<&str>, num_bonds: i3
     check_bonds(&temp, atoms) && connected(&temp)
 }
 
+/// Returns the maximum number of bonds a given element can have
 pub fn match_element(element: &str) -> u32 {
     match element {
         "C" => 4,
@@ -533,43 +536,44 @@ pub fn match_element(element: &str) -> u32 {
         _ => panic!("unknown element found")
     }
 }
-/// Correct a chromosome such that it posesses the correct number of bonds and
-/// the degree of each node (bond of each atom) is within the bounds
-/// C:4, N:3, O:2, Br, Cl: 1
-pub fn correct_chromosome(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: i32) -> Chromosome {
+/// Correct a chromosome such that it posesses the correct number of bonds
+pub fn correct_child(child: &mut Chromosome, parent0: &Chromosome, parent1: &Chromosome, num_bonds: u32) {
     let mut rng = thread_rng();
     let mut r;
-    let len = chromosome.len();
+    let len = child.len();
     // correct number of bonds
-    let current_bonds: u32 = chromosome.iter().sum();
-    if current_bonds as i32 > num_bonds  {
-        let mut del = current_bonds as i32 - num_bonds;
-        while del != 0 {
+    let mut current_bonds: u32 = child.iter().sum();
+    while current_bonds != num_bonds  {
+        // delete existing bond
+        if current_bonds > num_bonds {
             r = rng.gen_range(0, len);
-            if chromosome[r] > 0 {
-                chromosome[r] -= 1;
-                del -= 1
+            while child[r] == 0 {
+                r = rng.gen_range(0, len);
+            }
+            current_bonds -= child[r];
+            child[r] = 0;
+        }
+        // add a bond from parent chromosome to child
+        else if current_bonds < num_bonds {
+            match rng.gen_range(0, 2) {
+                0 => {
+                    r = rng.gen_range(0, len);
+                    while parent0[r] <= child[r] {
+                        r = rng.gen_range(0, len);
+                    }
+                    current_bonds += parent0[r] - child[r];
+                    child[r] = parent0[r];
+                }
+                1=> {
+                    r = rng.gen_range(0, len);
+                    while parent1[r] <= child[r] {
+                        r = rng.gen_range(0, len);
+                    }
+                    current_bonds += parent1[r] - child[r];
+                    child[r] = parent1[r];
+                }
+                _ => panic!("this isn't a thing"),
             }
         }
-    } else if (current_bonds as i32) < num_bonds {
-        let add = num_bonds - current_bonds as i32;
-        for _ in 0..add {
-            r = rng.gen_range(0, len);
-            chromosome[r] += 1;
-        }
     }
-    // correct degree of nodes in structure
-    let mut mol = chromosome_to_structure(&chromosome);
-    let mol_len = s_len(&mol);
-    let mut row_index = 0;
-    let mut re_add = 0;
-    let mut allowed_bonds;
-    let mut bonds;
-    // get count for each row
-    let mut count_bonds = mol.sum_axis(Axis(1)).into_raw_vec();
-
-
-    // re_add bonds to structure in valid places
-
-    structure_to_chromosome(&mol)
 }
