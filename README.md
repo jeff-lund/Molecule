@@ -1,24 +1,33 @@
 # Molecule
+A C13 NMR interpreter written in Rust. From an input file containing  
+a chemical formula and chemical shifts a genetic algorithm is used to
+find the interpreted structure.
 
-C13 Chemical Shifts \
-C=O (ketone) 		205-220 \
-C=O (aldehyde)		190-200 \
-C=O (acids/esters)	160-185 \
-C (aromatic)		125-150 \
-C=C (alkene)		115-140 \
-RCH2O-			50-90 \
-RCH2Cl			30-60 \
-RCH2NH2			30-65 \
-R3CH			25-35 \
-CH3CO-			20-50 \
-R2CH2			16-25 \
-RCH3			10-15 \
+## Getting Started
+Molecule uses the [standard cargo building process](https://doc.rust-lang.org/cargo/guide/working-on-an-existing-project.html).
+```sh
+git clone https://github.com/jeff-lund/Molecule.git
+cd Molecule
+cargo build
+```
 
-File Input
-[Elemental Analysis i.e C2H4O2] \
-[Comma separated chemical shifts i.e 162, 51] \
+Molecule is run from the command line on a file. Samples files are included in the
+`test_files` directory with sub-directories for expected runtimes.
+```
+cargo run test_files/short/acetic_acid.txt
+```
 
-Refercnes: \
-Contemporary Computer-Assisted Approaches to Molecular Structure Elucidation \
-Genius: A Genetic Algorithm for Automated Structure Elucidation from 13C
-NMR Spectra \
+File Input is expected to be two lines.
+[Chemical formula i.e C2H4O2] \
+[Comma separated chemical shifts i.e 162.0, 51.0] \
+
+Currently chemical formulas must explicitly list the number for each element, C2H4O
+will not recognize the lone Oxygen.
+Elements are limited to C, H, O, N, Cl, Br
+
+Unit tests are run with `Cargo test`
+
+This program is licensed under the "MIT License". Please see the file LICENSE in
+the source distribution of this software for license terms.
+
+Copyright (c) 2018 Jeff Lund
