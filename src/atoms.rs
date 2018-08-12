@@ -5,7 +5,7 @@ use atoms::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::cmp::Ordering::Less;
-pub const POPULATION: usize = 256;
+pub const POPULATION: usize = 64;
 pub const MUTATION_PROBABILITY: f64 = 0.05;
 pub type Structure = Array2<u32>;
 pub type Chromosome = Vec<u32>;
@@ -22,7 +22,7 @@ pub enum FunctionalGroup {
     CO,
     Alkene,
     Alkyne,
-    Aromatic,
+    // Aromatic,   -- Need better ring detection and maybe huckels rule fn to add this
     Amide,
     Imine,
     CarboxylicAcid,

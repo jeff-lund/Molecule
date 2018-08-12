@@ -42,12 +42,16 @@ pub fn parse_peaks(peaks: &str) -> Vec<f32> {
     ret.sort_by(|x, y| y.partial_cmp(x).unwrap());
     ret
 }
+#[test]
+fn test_parse_peaks() {
+    assert_eq!(parse_peaks("122.2,73.8, 10.0"), vec![122.2, 73.8, 10.0]);
+}
 
 /// Returns true if there is a peak in the input chemical shift peak data for each carbon in the chemical formula
 pub fn symmetrical_carbons(chemical_formula: &HashMap<&str, i32>, chemical_peaks: &Vec<f32>) -> bool {
     let ncarbons = chemical_formula.get("C").expect("No carbons present in formula");
     let length = chemical_peaks.len() as i32;
-    *ncarbons > length
+    *ncarbons != length
 }
 
 /// Creates vector with individual heavy atoms in C - O - N - Cl - Br order.

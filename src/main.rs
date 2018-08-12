@@ -26,9 +26,13 @@ fn main() -> std::io::Result<()> {
     let ihd = compute_ihd(&chemical_formula);
     let bonds = get_bonds(&chemical_formula);
     let atoms = get_atoms(&chemical_formula);
-
+    if symmetrical_carbons(&chemical_formula, &peaks) {
+        eprintln!("There must be a chemical shift for each carbon atom in the chemical formula");
+        std::process::exit(0);
+    }
     // Generate random molecule population
     let mut population: Vec<Molecule> = Vec::new();
+
     if DEBUG == true {
         let mut tot = 0;
         let mut fcon = 0;
