@@ -15,9 +15,11 @@ Molecule is run from the command line on a file. Samples files are included in t
 cargo run test_files/short/acetic_acid.txt
 ```
 
-File Input is expected to be two lines.
-[Chemical formula i.e C2H4O2] \
-[Comma separated chemical shifts i.e 162.0, 51.0] \
+File Input is expected to be two lines. The first containing the chemical formula and the second csv floats for each peak in the C13 spectra including symmetrical peaks. \
+```
+C2H4O2 
+162.0, 51.0
+```
 
 Currently chemical formulas must explicitly list the number for each element, C2H4O
 will not recognize the lone Oxygen.
