@@ -17,7 +17,7 @@ cargo run test_files/short/acetic_acid.txt
 
 File Input is expected to be two lines. The first containing the chemical formula and the second csv floats for each peak in the C13 spectra including symmetrical peaks.
 ```
-C2H4O2 
+C2H4O2
 162.0, 51.0
 ```
 
@@ -29,7 +29,7 @@ Unit tests are run with `Cargo test`
 
 ## Chemical Shift Calculation
 For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;... \
-The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
+The chemical shift of **C**: &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
 
 ### Steric corrections
 | Carbon Atom Observed | Primary | Secondary | Tertiary | Quaternary |
