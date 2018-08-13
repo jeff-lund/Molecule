@@ -27,6 +27,23 @@ Elements are limited to C, H, O, N, Cl, Br
 
 Unit tests are run with `Cargo test`
 
+## Chemical Shift Calculation
+For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;... /
+The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
+
+### Steric corrections
+| Carbon Atom Observed | Primary | Secondary | Tertiary | Quaternary |
+|----------------------|:-------:|:---------:|:--------:|-----------:|
+| Primary              | 0       | 0         | -1.1     | -3.4       |
+| Secondary            | 0       | 0         | -2.5     | -7.5       |
+| Tertiary             | 0       | -3.7      | -8.5     | -10.0      |
+| Quaternary           | 0       | -8.4      | -10.0    | -12.5      |
+
+&#948;C is further affected by substituent effects too numerous to list here. \
+Reference: Introduction to Spectroscopy 4th ed, Pavia, Lampman, Kriz, Vyvyan. Appendix 8.
+
+
+
 This program is licensed under the "MIT License". Please see the file LICENSE in
 the source distribution of this software for license terms.
 

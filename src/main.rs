@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 const DEBUG: bool = true;
+const DUMB_TESTING: bool = false;
 
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
@@ -65,10 +66,10 @@ fn main() -> std::io::Result<()> {
         println!("Failed connected: {}", fcon);
         println!("Failed both: {}", failed_both);
 
-        for p in population.iter_mut() {
-            p.assign_carbons(&atoms);
-            println!("{:?}", p.kind);
-        }
+        //for p in population.iter_mut() {
+        //    p.assign_carbons(&atoms);
+    //        println!("{:?}", p.kind);
+    //    }
     }
     // START evolution
     // calculate chemical shifts
@@ -94,6 +95,47 @@ fn main() -> std::io::Result<()> {
         println!("Bonds - Total: {} | Assigned: {}", bonds.0, bonds.1);
         println!("********************END DEBUG*********************************");
         // END DEBUG PRINTING`
+    }
+    if DUMB_TESTING == true {
+        // Figure out how to get this working as an integration test
+        println!("test generate children");
+        let t_atoms = vec!["C", "C","C","C","C","O","Cl"];
+        let t_bonds = (16, 7);
+        let mut t_population = Vec::new();
+        let mut t_pop = 0;
+        let mut t_runs = 0;
+        let mut con_cnt = 0;
+        let mut bnd_cnt = 0;
+        while t_pop < POPULATION {
+            let t_con: bool;
+            let t_bnd: bool;
+            t_runs += 1;
+            if t_runs > 1000000 {
+                println!("Failed bonds: {}", bnd_cnt);
+                println!("Failed connection: {}", con_cnt);
+                panic!("creation stuck in loop");
+            }
+            let mol = create_test_molecule(&t_atoms, t_bonds);
+            t_bnd = check_bonds(&mol.structure, &t_atoms);
+            t_con = connected(&mol.structure);
+            if !t_bnd {
+                bnd_cnt += 1;
+            }
+            if !t_con {
+                con_cnt += 1;
+            }
+            if t_bnd && t_con {
+                t_population.push(mol);
+                t_pop += 1;
+            }
+        }
+        let new_pop = generate_children(t_population, &t_atoms, t_bonds.1);
+        assert_eq!(new_pop.len(), POPULATION);
+        for p in new_pop {
+            assert!(connected(&p.structure));
+            assert!(check_bonds(&p.structure, &t_atoms));
+        }
+        println!("All good");
     }
     Ok(())
 }

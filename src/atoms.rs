@@ -5,7 +5,7 @@ use atoms::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::cmp::Ordering::Less;
-pub const POPULATION: usize = 64;
+pub const POPULATION: usize = 64; // POPULATION must be even
 pub const MUTATION_PROBABILITY: f64 = 0.05;
 pub type Structure = Array2<u32>;
 pub type Chromosome = Vec<u32>;
@@ -43,6 +43,16 @@ pub struct Molecule {
     pub fitness: f32,
 }
 
+
+#[derive(Debug)]
+pub struct Tree {
+    pub alpha: Vec<usize>,
+    pub beta: Vec<usize>,
+    pub gamma: Vec<usize>,
+    pub sigma: Vec<usize>,
+    pub epsilon: Vec<usize>,
+}
+
 // fitness init is ugly
 impl Molecule {
     /// Creates new Molecule from a given structure. Kind and chemical shift vectors are initialized empty
@@ -59,13 +69,7 @@ impl Molecule {
         let zipped = self.chemical_shifts.iter().zip(experimental.iter());
         self.fitness = (1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt();
     }
-    /// Resets Molecule to its initial state
-    pub fn clear(&mut self) {
-        self.kind.clear();
-        self.chemical_shifts.clear();
-        self.fitness = -999.0
-    }
-        /// Assigns functional groups to each carbon.
+    /// Assigns functional groups to each carbon.
     // this needs to be broken up and cleaned up
     pub fn assign_carbons(&mut self, atoms: &Vec<&str>) {
         let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
@@ -200,23 +204,99 @@ impl Molecule {
         }
     }
     /// Computes chemical shift of each carbon in the structure
-    pub fn compute_shifts(&mut self, _atoms: &Vec<&str>, _chemical_formula: &HashMap<&str, i32>) {
-        unimplemented!();
+    /// See README for details about implemtation
+    pub fn compute_shifts(&mut self, atoms: &Vec<&str>) {
+        let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
+        for i  in 0..num_carbons {
+            let mut tree = build_tree(i, &self.structure, atoms);
+
+        }
     }
+}
+#[test]
+fn test_assign_carbons() {
+    let mut test = Molecule::new(chromosome_to_structure(&vec![1,2,1,0,0,0,1,0,0,0]));
+    let atoms = vec!["C","C","O","O","N"];
+    test.assign_carbons(&atoms);
+    assert_eq!(test.kind, vec![CarboxylicAcid, CN]);
+}
+
+// Internal helper functions
+
+/// Builds a tree of attached carbon atoms for each layer of chemical shift search
+/// atoms refered to by index in atoms vec
+// BUG removing edges will probably mess up cycles
+fn build_tree(start: usize, structure: &Structure, atoms: &Vec<&str>)
+-> Tree {
+    let mut edges = edges(&structure);
+    // START component vectors
+    let alpha:       Vec<usize>;
+    let mut beta:    Vec<usize> = Vec::new();
+    let mut gamma:   Vec<usize> = Vec::new();
+    let mut sigma:   Vec<usize> = Vec::new();
+    let mut epsilon: Vec<usize> = Vec::new();
+    // END component vectors
+
+    alpha = get_adjacent_nodes(start, &edges, atoms);
+    // pull out any edge that contains the root
+    edges.retain(|(x, y)| *x != start && *y != start);
+    // beta layer
+    for node in alpha.iter() {
+        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        beta.append(&mut temp);
+        edges.retain(|(x, y)| x != node && y != node);
+    }
+    // gamma layer
+    for node in beta.iter() {
+        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        gamma.append(&mut temp);
+        edges.retain(|(x, y)| x != node && y != node);
+    }
+    // sigma level
+    for node in gamma.iter() {
+        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        sigma.append(&mut temp);
+        edges.retain(|(x, y)| x != node && y != node);
+    }
+    //epsilon level
+    for node in sigma.iter() {
+        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        epsilon.append(&mut temp);
+        edges.retain(|(x, y)| x != node && y != node);
+    }
+
+    Tree { alpha, beta, gamma, sigma, epsilon }
+}
+
+// gets all adjacent carbon nodes from a base node
+fn get_adjacent_nodes(
+    base_node: usize, edges: &Vec<(usize, usize)>, atoms: &Vec<&str>)
+-> Vec<usize> {
+    let mut ret = Vec::new();
+    for (x, y) in edges {
+        if *x == base_node && atoms[*y] == "C" && !ret.contains(y) {
+            ret.push(*y);
+        } else if *y == base_node && atoms[*x] == "C" && !ret.contains(x) {
+            ret.push(*x);
+        }
+    }
+    ret
 }
 
 /// Returns the length of a Structure.
 /// As all Structures are square matrices either dimension can be returned
-pub fn s_len(s: &Structure) -> usize {
+fn s_len(s: &Structure) -> usize {
     s.dim().0
 }
-
 /// Retruns the length of the molecule matrix derived from this chromosome
 /// Derived from the quadratic equation
-pub fn molecule_len(chromosome: &Chromosome) -> usize {
+fn molecule_len(chromosome: &Chromosome) -> usize {
     ((1.0 + (1.0 + 8.0 * chromosome.len() as f32).sqrt()) / 2.0) as usize
 }
-
+#[test]
+fn test_mol_len() {
+    assert_eq!(molecule_len(&vec![0,0,0,0,0,0,0,0,0,0]), 5);
+}
 /// Returns (total bonds, assigned bonds)
 /// When building matrices only heavy atoms are assigned, hydrogen is ignored
 /// The total bonds are needed to check the final structure has exactly the number of
@@ -305,7 +385,13 @@ pub fn connected(structure: &Structure) -> bool {
     }
     components == 1
 }
-
+#[test]
+fn test_connected() {
+    // acyclic
+    assert!(connected(&chromosome_to_structure(&vec![1,0,0,2,1,0])));
+    // cyclic
+    assert!(connected(&chromosome_to_structure(&vec![1,0,0,1,1,0,0,1,0,1])));
+}
 // checks that each atom in a molecule is not exceeding its maximum possible bonds
 // C: 4 | O: 2 | N: 3 | Br: 1 | Cl: 1
 // TODO try to enumerate rows and ditch row_index
@@ -374,7 +460,11 @@ pub fn reduce_structure(structure: &Structure) -> Structure {
     }
     reduced
 }
-
+#[test]
+fn test_reduce_structure() {
+    assert_eq!(reduce_structure(&chromosome_to_structure(&vec![2,3,4,2,2,2,2,0,0,0])),
+        chromosome_to_structure(&vec![1,1,1,1,1,1,1,0,0,0]));
+}
 /// Transforms an adjacency matrix into an edge list
 /// The lower triangle is excluded as it is a mirror of the upper triangle
 pub fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
@@ -390,6 +480,10 @@ pub fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
         }
     }
     ret
+}
+#[test]
+fn test_edges() {
+    assert_eq!(edges(&chromosome_to_structure(&vec![1,1,1])), vec![(0,1), (0,2), (1,2)]);
 }
 
 /// Detects if rings are present in molecule
@@ -440,7 +534,7 @@ fn test_rings_present() {
 }
 
 /// Generates new child generation from parent population
-/// Keeps best half of parent population then recombines to form children
+/// Keeps best half of parent population and recombines parents to form children
 /// Returns child population
 pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bonds: u32) -> Vec<Molecule> {
     let mut children: Vec<Molecule> = Vec::new();
@@ -459,9 +553,12 @@ pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bo
         let child2 = recombine(&mol1, &mol2, atoms, num_bonds);
         children.push(child1);
         children.push(child2);
+        children.push(mol1);
+        children.push(mol2);
     }
     children
 }
+
 /// recombine two parents to form a child chromosome
 // TODO alter recombination probabilitoes based off of relative fitness
 // TODO alter RP iteritively throughout generations
@@ -472,7 +569,12 @@ pub fn recombine(p1: &Molecule, p2: &Molecule, atoms: &Vec<&str>, num_bonds: u32
     let mut child: Chromosome = Vec::new();
     let chrom0 = structure_to_chromosome(&p1.structure);
     let chrom1 = structure_to_chromosome(&p2.structure);
+    let mut runs = 0;
     loop {
+        runs += 1;
+        if runs > 1000000 {
+            panic!("Recombine stuck in loop");
+        }
         for i in 0..chrom1.len() {
             rand = rng.gen_range(0, 2);
             match rand {
@@ -498,7 +600,12 @@ pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: u
     let l = chromosome.len();
     let mut gene_1;
     let mut gene_2;
+    let mut runs= 0;
     loop {
+        runs += 1;
+        if runs > 10_000 {
+            break;
+        }
         gene_1 = rng.gen_range(0, l);
         gene_2 = rng.gen_range(0, l);
         if gene_1 != gene_2 {
@@ -543,7 +650,12 @@ pub fn correct_child(child: &mut Chromosome, parent0: &Chromosome, parent1: &Chr
     let len = child.len();
     // correct number of bonds
     let mut current_bonds: u32 = child.iter().sum();
+    let mut runs = 0;
     while current_bonds != num_bonds  {
+        runs += 1;
+        if runs > 100_000 {
+            panic!("correct child stuck in loop");
+        }
         // delete existing bond
         if current_bonds > num_bonds {
             r = rng.gen_range(0, len);

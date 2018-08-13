@@ -85,6 +85,7 @@ pub fn get_atoms(chemical_formula: &HashMap<&str, i32>) -> Vec<&'static str> {
 // PROBABLY DONT NEED THIS
 // Computes the index of gen deficiency  to find level of unsaturation
 // 1 degree of unsaturation = 1 ring or double bond in final structure
+// Higher IHD's are more computationally intensive
 // IHD = (2C + 2 + N - H - X) / 2 where X is halogens
 pub fn compute_ihd(elements: &HashMap<&str, i32>) -> i32 {
     let mut ihd: i32 = 2;
