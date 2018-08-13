@@ -1,7 +1,5 @@
 # Molecule
-A C13 NMR interpreter written in Rust. From an input file containing  
-a chemical formula and chemical shifts a genetic algorithm is used to
-find the interpreted structure.
+A C13 NMR interpreter written in Rust. From an input file containing a chemical formula and chemical shifts a genetic algorithm is used to find the interpreted structure.
 
 ## Getting Started
 Molecule uses the [standard cargo building process](https://doc.rust-lang.org/cargo/guide/working-on-an-existing-project.html).
