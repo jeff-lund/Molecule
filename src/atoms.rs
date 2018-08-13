@@ -49,7 +49,7 @@ pub struct Tree {
     pub alpha: Vec<usize>,
     pub beta: Vec<usize>,
     pub gamma: Vec<usize>,
-    pub sigma: Vec<usize>,
+    pub delta: Vec<usize>,
     pub epsilon: Vec<usize>,
 }
 
@@ -233,7 +233,7 @@ fn build_tree(start: usize, structure: &Structure, atoms: &Vec<&str>)
     let alpha:       Vec<usize>;
     let mut beta:    Vec<usize> = Vec::new();
     let mut gamma:   Vec<usize> = Vec::new();
-    let mut sigma:   Vec<usize> = Vec::new();
+    let mut delta:   Vec<usize> = Vec::new();
     let mut epsilon: Vec<usize> = Vec::new();
     // END component vectors
 
@@ -252,22 +252,42 @@ fn build_tree(start: usize, structure: &Structure, atoms: &Vec<&str>)
         gamma.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
-    // sigma level
+    // delta level
     for node in gamma.iter() {
         let mut temp = get_adjacent_nodes(*node, &edges, atoms);
-        sigma.append(&mut temp);
+        delta.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
     //epsilon level
-    for node in sigma.iter() {
+    for node in delta.iter() {
         let mut temp = get_adjacent_nodes(*node, &edges, atoms);
         epsilon.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
 
-    Tree { alpha, beta, gamma, sigma, epsilon }
+    Tree { alpha, beta, gamma, delta, epsilon }
 }
-
+#[test]
+fn test_build_tree() {
+    let chrom = vec![1,1,0,0,0,0,0,0
+                      ,0,1,1,0,0,0,0,
+                         0,0,1,0,0,1,
+                           0,0,0,0,0,
+                             0,1,1,0,
+                               0,0,0,
+                                 0,0,
+                                   0];
+    let atoms = vec!["C","C","C","C","C","C","C","O","O"];
+    println!("{:?}", chromosome_to_structure(&chrom));
+    let test = build_tree(0, &chromosome_to_structure(&chrom), &atoms);
+    let answer = Tree { alpha: vec![1, 2], beta: vec![4, 5],
+        gamma: vec![6], delta: Vec::new(), epsilon: Vec::new() };
+    assert_eq!(test.alpha, answer.alpha);
+    assert_eq!(test.beta, answer.beta);
+    assert_eq!(test.gamma, answer.gamma);
+    assert_eq!(test.delta, answer.delta);
+    assert_eq!(test.epsilon, answer.epsilon);
+}
 // gets all adjacent carbon nodes from a base node
 fn get_adjacent_nodes(
     base_node: usize, edges: &Vec<(usize, usize)>, atoms: &Vec<&str>)
