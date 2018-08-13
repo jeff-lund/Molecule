@@ -1,7 +1,5 @@
 # Molecule
-A C13 NMR interpreter written in Rust. From an input file containing  
-a chemical formula and chemical shifts a genetic algorithm is used to
-find the interpreted structure.
+A C13 NMR interpreter written in Rust. From an input file containing a chemical formula and chemical shifts a genetic algorithm is used to find the interpreted structure.
 
 ## Getting Started
 Molecule uses the [standard cargo building process](https://doc.rust-lang.org/cargo/guide/working-on-an-existing-project.html).
@@ -17,9 +15,11 @@ Molecule is run from the command line on a file. Samples files are included in t
 cargo run test_files/short/acetic_acid.txt
 ```
 
-File Input is expected to be two lines.
-[Chemical formula i.e C2H4O2] \
-[Comma separated chemical shifts i.e 162.0, 51.0] \
+File Input is expected to be two lines. The first containing the chemical formula and the second csv floats for each peak in the C13 spectra including symmetrical peaks.
+```
+C2H4O2 
+162.0, 51.0
+```
 
 Currently chemical formulas must explicitly list the number for each element, C2H4O
 will not recognize the lone Oxygen.
@@ -28,7 +28,7 @@ Elements are limited to C, H, O, N, Cl, Br
 Unit tests are run with `Cargo test`
 
 ## Chemical Shift Calculation
-For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;... /
+For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;... \
 The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
 
 ### Steric corrections
