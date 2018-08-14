@@ -42,15 +42,13 @@ pub struct Molecule {
     pub chemical_shifts: Vec<f32>,
     pub fitness: f32,
 }
-
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Tree {
-    pub alpha: Vec<usize>,
-    pub beta: Vec<usize>,
-    pub gamma: Vec<usize>,
-    pub delta: Vec<usize>,
-    pub epsilon: Vec<usize>,
+    alpha: Vec<usize>,
+    beta: Vec<usize>,
+    gamma: Vec<usize>,
+    delta: Vec<usize>,
+    epsilon: Vec<usize>,
 }
 
 // fitness init is ugly
@@ -206,10 +204,30 @@ impl Molecule {
     /// Computes chemical shift of each carbon in the structure
     /// See README for details about implemtation
     pub fn compute_shifts(&mut self, atoms: &Vec<&str>) {
+        let steric_corrects = arr2(&[
+            [0.0,0.0,-1.1,-3.4],
+            [0.0,0.0,-2.5,-7.5],
+            [0.0,-3.7,-8.5,-10.0],
+            [0.0,-8.4,-10.0,-12.5]]);
         let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
+        let edges = edges(&self.structure);
         for i  in 0..num_carbons {
-            let mut tree = build_tree(i, &self.structure, atoms);
-
+            let tree = build_tree(i, &self.structure, atoms);
+            let mut shift =  -2.3
+                + 9.1*tree.alpha.len() as f32
+                + 9.4*tree.beta.len() as f32
+                - 2.5*tree.gamma.len() as f32
+                + 0.3*tree.delta.len() as f32
+                + 0.1*tree.epsilon.len() as f32;
+            let observed = tree.alpha.len();
+            // adjust based on steric corrections
+            for node in tree.alpha {
+                let degree = get_adjacent_nodes(node, &edges, atoms).len();
+                shift += steric_corrects[[observed, degree]];
+            }
+            // Add substiuent effects
+            // Ring effects?
+            self.chemical_shifts.push(shift);
         }
     }
 }
@@ -280,13 +298,12 @@ fn test_build_tree() {
     let atoms = vec!["C","C","C","C","C","C","C","O","O"];
     println!("{:?}", chromosome_to_structure(&chrom));
     let test = build_tree(0, &chromosome_to_structure(&chrom), &atoms);
-    let answer = Tree { alpha: vec![1, 2], beta: vec![4, 5],
+    let answer = Tree { alpha: vec![1, 2], beta: vec![3, 4, 5],
         gamma: vec![6], delta: Vec::new(), epsilon: Vec::new() };
-    assert_eq!(test.alpha, answer.alpha);
-    assert_eq!(test.beta, answer.beta);
-    assert_eq!(test.gamma, answer.gamma);
-    assert_eq!(test.delta, answer.delta);
-    assert_eq!(test.epsilon, answer.epsilon);
+    let test2 = build_tree(4, &chromosome_to_structure(&chrom), &atoms);
+    let answer2 = Tree{ alpha: vec![1, 6], beta: vec![0, 3], gamma: vec![2], delta: vec![5], epsilon: Vec::new()};
+    assert_eq!(test, answer);
+    assert_eq!(test2, answer2);
 }
 // gets all adjacent carbon nodes from a base node
 fn get_adjacent_nodes(
