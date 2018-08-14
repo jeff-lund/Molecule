@@ -17,7 +17,7 @@ cargo run test_files/short/acetic_acid.txt
 
 File Input is expected to be two lines. The first containing the chemical formula and the second csv floats for each peak in the C13 spectra including symmetrical peaks.
 ```
-C2H4O2 
+C2H4O2
 162.0, 51.0
 ```
 
@@ -28,7 +28,7 @@ Elements are limited to C, H, O, N, Cl, Br
 Unit tests are run with `Cargo test`
 
 ## Chemical Shift Calculation
-For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;... \
+For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;...  
 The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
 
 ### Steric corrections
@@ -39,7 +39,9 @@ The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; +
 | Tertiary             | 0       | -3.7      | -8.5     | -10.0      |
 | Quaternary           | 0       | -8.4      | -10.0    | -12.5      |
 
-&#948;C is further affected by substituent effects too numerous to list here. \
+&#948;C is further affected by substituent effects too numerous to list here.  
+More information with more tables than anyone could possibly hope for [here](https://www.chem.wisc.edu/areas/reich/nmr/c13-data/cdata.htm)
+
 Reference: Introduction to Spectroscopy 4th ed, Pavia, Lampman, Kriz, Vyvyan. Appendix 8.
 
 

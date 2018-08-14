@@ -578,6 +578,45 @@ pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bo
     }
     children
 }
+#[test]
+fn test_generate_children() {
+    let atoms = vec!["C", "C","C","C","C","O","Cl"];
+    let bonds = (16, 7);
+    let mut population = Vec::new();
+    let mut pop = 0;
+    let mut runs = 0;
+    let mut con_cnt = 0;
+    let mut bnd_cnt = 0;
+    while t_pop < POPULATION {
+        let t_con: bool;
+        let t_bnd: bool;
+        t_runs += 1;
+        if t_runs > 1000000 {
+            println!("Failed bonds: {}", bnd_cnt);
+            println!("Failed connection: {}", con_cnt);
+            panic!("creation stuck in loop");
+        }
+        let mol = create_test_molecule(&t_atoms, t_bonds);
+        t_bnd = check_bonds(&mol.structure, &t_atoms);
+        t_con = connected(&mol.structure);
+        if !t_bnd {
+            bnd_cnt += 1;
+        }
+        if !t_con {
+            con_cnt += 1;
+        }
+        if t_bnd && t_con {
+            t_population.push(mol);
+            t_pop += 1;
+        }
+    }
+    let new_pop = generate_children(t_population, &t_atoms, t_bonds.1);
+    assert_eq!(new_pop.len(), POPULATION);
+    for p in new_pop {
+        assert!(connected(&p.structure));
+        assert!(check_bonds(&p.structure, &t_atoms));
+    }
+}
 
 /// recombine two parents to form a child chromosome
 // TODO alter recombination probabilitoes based off of relative fitness
