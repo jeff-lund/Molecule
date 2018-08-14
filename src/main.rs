@@ -1,12 +1,12 @@
 // Copyright (c) 2018 Jeff Lund
-#![allow(unused_imports)]
 #![allow(dead_code)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
 mod utility;
 use utility::*;
 mod atoms;
 use atoms::*;
 
-use std::collections::HashMap;
 use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
@@ -43,20 +43,31 @@ fn main() -> std::io::Result<()> {
             }
         }
         // START evolution
-        let best: Molecule;
-        for _ in 0..MAX_GENERATIONS {
+        let mut best_molecule: Molecule = Molecule::new(Structure::zeros((1,1)));
+        for gen in 0..MAX_GENERATIONS {
+            println!("Generation {}", gen);
             // calculate chemical shifts
             // calculate molecules fitness
             for molecule in population.iter_mut() {
                 molecule.assign_carbons(&atoms);
+                molecule.compute_shifts(&atoms);
                 molecule.fitness(&peaks);
             }
             // check break condition
-
+            best_molecule = best(&population);
+            if best_molecule.fitness == 0.0 {
+                break;
+            }
             // Create new population from parent generation
-            population = generate_children(population, &atoms, bonds.1)
+            population = generate_children(population, &atoms, bonds)
             // END evolution
         }
+        println!("Best fit found");
+        println!("Atoms for reference: {:?}", atoms);
+        println!("{:?}", best_molecule.structure);
+        println!("{:?}", best_molecule.kind);
+        println!("{:?}", best_molecule.chemical_shifts);
+        println!("Fitness: {}", best_molecule.fitness);
     }
     if DEBUG == true {
         // DEBUG PRINTING REMOVE LATER
@@ -68,7 +79,7 @@ fn main() -> std::io::Result<()> {
         if symmetrical_carbons(&chemical_formula, &peaks) {
             println!("Symmetric carbons present");
         }
-        println!("Bonds - Total: {} | Assigned: {}", bonds.0, bonds.1);
+        println!("Bonds Assigned: {}", bonds);
         println!("********************END DEBUG*********************************");
         // END DEBUG PRINTING
         // START DEBUG CREATION
@@ -104,9 +115,9 @@ fn main() -> std::io::Result<()> {
         println!("Failed connected: {}", fcon);
         println!("Failed both: {}", failed_both);
 
-        for p in population.iter_mut() {
-            p.assign_carbons(&atoms);
-            println!("{:?}", p.kind);
+        for i in 0..10 {
+            population[i].assign_carbons(&atoms);
+            println!("{:?}", population[i].kind);
         }
         // END DEBUG CREATION
     }

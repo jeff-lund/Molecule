@@ -10,7 +10,7 @@ pub const MUTATION_PROBABILITY: f64 = 0.05;
 pub type Structure = Array2<u32>;
 pub type Chromosome = Vec<u32>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum FunctionalGroup {
     CH3,
     CH2,
@@ -35,7 +35,7 @@ pub enum FunctionalGroup {
 }
 use FunctionalGroup::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Molecule {
     pub structure: Structure,
     pub kind: Vec<FunctionalGroup>,
@@ -63,7 +63,7 @@ impl Molecule {
     // fitness = sqrt( 1/N sum((chem_shift_calc - chem_shift_exp)^2))
     // Input: chemical peaks data
     pub fn fitness(&mut self, experimental: &Vec<f32>) {
-        assert_eq!(self.chemical_shifts.len(), experimental.len(), "Peak data and chemical shifts should both represent the total number of carbon atoms in molecule.");
+        assert_eq!(self.chemical_shifts.len(), experimental.len(), "Peaks and chemical shifts not aligned.");
         let zipped = self.chemical_shifts.iter().zip(experimental.iter());
         self.fitness = (1.0/experimental.len() as f32) * (zipped.fold(0.0, |acc, (calc, exp)| acc + (calc-exp).powi(2))).sqrt();
     }
@@ -204,20 +204,25 @@ impl Molecule {
     /// Computes chemical shift of each carbon in the structure
     /// See README for details about implemtation
     pub fn compute_shifts(&mut self, atoms: &Vec<&str>) {
+        self.chemical_shifts.clear();
         let steric_corrects = arr2(&[
-            [0.0,0.0,-1.1,-3.4],
-            [0.0,0.0,-2.5,-7.5],
-            [0.0,-3.7,-8.5,-10.0],
-            [0.0,-8.4,-10.0,-12.5]]);
+            [0.0,  0.0,  -1.1,  -3.4],
+            [0.0,  0.0,  -2.5,  -7.5],
+            [0.0, -3.7,  -8.5, -10.0],
+            [0.0, -8.4, -10.0, -12.5]]);
         let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
         let edges = edges(&self.structure);
+        // Ring Detection
         let rings: Vec<Vec<usize>>;
-        let ring_nodes: Vec<(usize, usize)>;
+        let ring_nodes: HashMap::new();
         match rings_present(&self.structure) {
             Some(t) => {
                 let rings_present = true;
                 rings = elucidate_rings(&t);
-                ring_nodes = t.to_vec();
+                for (n1, n2) in t {
+                    ring_nodes.insert(*n1);
+                    ring_nodes.insert(*n2);
+                }
             }
             None => {
                 let rings_present = false;
@@ -225,26 +230,54 @@ impl Molecule {
                 ring_nodes = Vec::new();
             }
         }
+
+        // START delta-C assignment
         for i  in 0..num_carbons {
-            let tree = build_tree(i, &self.structure, atoms);
-            let base = -2.3;//get_base();
-            let mut shift =  base
-                + 9.1*tree.alpha.len() as f32
-                + 9.4*tree.beta.len() as f32
-                - 2.5*tree.gamma.len() as f32
-                + 0.3*tree.delta.len() as f32
-                + 0.1*tree.epsilon.len() as f32;
-            let observed = tree.alpha.len();
-            // adjust based on steric corrections
-            for node in tree.alpha {
-                let degree = get_adjacent_carbons(node, &edges, atoms).len();
-                shift += steric_corrects[[observed, degree]];
+            let mut shift = 0.0;
+            let mut linear = false;
+            let mut alkane = false;
+            let mut aromatic = false;
+            let current_ring;
+            if !rings_present {
+                linear = true;
+            } else {
+                if ring_nodes.contains(i) {
+                    for r in rings.iter() {
+                        if r.contains(&i) {
+                            current_ring = r.clone();
+                        }
+                    }
+                } else {
+                    linear = true;
+                }
             }
-            // Add substiuent effects
+            // Linear and brancher alkane
+            if linear {
+                let tree = build_tree(i, &self.structure, atoms);
+                shift = -2.3
+                    + 9.1 * tree.alpha.len() as f32
+                    + 9.4 * tree.beta.len() as f32
+                    - 2.5 * tree.gamma.len() as f32
+                    + 0.3 * tree.delta.len() as f32
+                    + 0.1 * tree.epsilon.len() as f32;
+                    let observed = tree.alpha.len();
+                // adjust based on steric corrections
+                for node in tree.alpha {
+                    let degree = get_adjacent_carbons(node, &edges, atoms).len();
+                    shift += steric_corrects[[observed-1, degree-1]];
+                }
+                // Add substiuent effects
+            }
+            // linear and brancher alkenes
+
+            // aromatic rings
+
             // Ring effects?
             self.chemical_shifts.push(shift);
         }
+        // END delta-C assignment
     }
+    // END impls for Molecule
 }
 #[test]
 fn test_assign_carbons() {
@@ -256,7 +289,6 @@ fn test_assign_carbons() {
 
 /// Builds a tree of attached carbon atoms for each layer of chemical shift search
 /// atoms refered to by index in atoms vec
-// BUG removing edges will probably mess up cycles
 fn build_tree(start: usize, structure: &Structure, atoms: &Vec<&str>)
 -> Tree {
     let mut edges = edges(&structure);
@@ -332,9 +364,23 @@ fn get_adjacent_carbons(
     }
     ret
 }
-/// Retuns base shift for originating carbon for use in chemical shift calculation
-fn get_base(base_carbon: usize, structure: &Structure, atoms: &Vec<&str>) -> f32 {
-    unimplemented!();
+
+fn is_benzene(edges: &Vec<(usize, usize)>, func_groups: &Vec<FunctionalGroup>) -> bool {
+    if edges.len() != 6 {
+        return false;
+    }
+    for (x, y) in edges {
+        if func_groups[*x] != Alkene || func_groups[*y] != Alkene {
+            return false;
+        }
+    }
+    true
+}
+#[test]
+fn test_is_benzene() {
+    let edges = vec![(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (0, 5)];
+    let func_groups = vec![Alkene,Alkene,Alkene,Alkene,Alkene,Alkene];
+    assert!(is_benzene(&edges, &func_groups));
 }
 /// Detects if rings are present in molecule
 /// Returns vector containing edges in ring if cycle is present
@@ -451,13 +497,13 @@ fn molecule_len(chromosome: &Chromosome) -> usize {
 fn test_mol_len() {
     assert_eq!(molecule_len(&vec![0,0,0,0,0,0,0,0,0,0]), 5);
 }
-/// Returns (total bonds, assigned bonds)
+/// Returns assigned bonds
 /// When building matrices only heavy atoms are assigned, hydrogen is ignored
 /// The total bonds are needed to check the final structure has exactly the number of
 /// open bonds to fill in with hydrogens
 /// Total bonds = (4 * carbon + 2 * oxygen + 3 * nitrogen + hydrogen + halogens) / 2
 /// assigned bonds = total bonds - hydrogen
-pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (u32, u32) {
+pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> u32 {
     let mut total_bonds = 0;
     match chemical_formula.get("C") {
         Some(n) => total_bonds += *n as u32 * 4,
@@ -485,7 +531,7 @@ pub fn get_bonds(chemical_formula: &HashMap<&str, i32>) -> (u32, u32) {
     };
     total_bonds = (total_bonds + h) / 2;
     let assigned_bonds = total_bonds - h;
-    (total_bonds, assigned_bonds)
+    assigned_bonds
 }
 /// Transforms a chromsome into its matrix representation
 pub fn chromosome_to_structure(chrom: &Chromosome) -> Structure {
@@ -580,10 +626,10 @@ fn test_check_bonds_panic() {
 /// A chromosome is the concatenation of the values from the upper
 /// triangle exluding the diagonal
 // TODO This algorithm is super inefficient find better way to generate graph
-pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (u32, u32)) -> Molecule {
+pub fn create_test_molecule(atoms: &Vec<&str>, bonds: u32) -> Molecule {
     let mut rng = thread_rng();
     let l = atoms.len();
-    let num_bonds = bonds.1;
+    let num_bonds = bonds;
     let chromosome_length: usize = (l * l - l)/2;
     let mut chromosome: Chromosome = vec![0; chromosome_length];
 
@@ -668,7 +714,7 @@ pub fn generate_children(mut population:Vec<Molecule>,
 #[test]
 fn test_generate_children() {
     let atoms = vec!["C", "C","C","C","C","O","Cl"];
-    let bonds = (16, 7);
+    let bonds = 7;
     let mut population = Vec::new();
     let mut pop = 0;
     let mut runs = 0;
@@ -697,7 +743,7 @@ fn test_generate_children() {
             pop += 1;
         }
     }
-    let new_pop = generate_children(population, &atoms, bonds.1);
+    let new_pop = generate_children(population, &atoms, bonds);
     assert_eq!(new_pop.len(), POPULATION);
     for p in new_pop {
         assert!(connected(&p.structure));
@@ -834,4 +880,17 @@ fn correct_child(child: &mut Chromosome, parent0: &Chromosome, parent1: &Chromos
             }
         }
     }
+}
+/// Finds the molecule from a given population with the lowest fitness
+/// and returns it as the best fit in the generation.
+pub fn best(population: &Vec<Molecule>) -> Molecule {
+    let mut min = population[0].fitness;
+    let mut best = 0;
+    for i in 1..population.len() {
+        if population[i].fitness < min {
+            min = population[i].fitness;
+            best = i;
+        }
+    }
+    population[best].clone()
 }
