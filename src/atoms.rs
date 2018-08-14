@@ -211,9 +211,24 @@ impl Molecule {
             [0.0,-8.4,-10.0,-12.5]]);
         let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
         let edges = edges(&self.structure);
+        let rings: Vec<Vec<usize>>;
+        let ring_nodes: Vec<(usize, usize)>;
+        match rings_present(&self.structure) {
+            Some(t) => {
+                let rings_present = true;
+                rings = elucidate_rings(&t);
+                ring_nodes = t.to_vec();
+            }
+            None => {
+                let rings_present = false;
+                rings = Vec::new();
+                ring_nodes = Vec::new();
+            }
+        }
         for i  in 0..num_carbons {
             let tree = build_tree(i, &self.structure, atoms);
-            let mut shift =  -2.3
+            let base = -2.3;//get_base();
+            let mut shift =  base
                 + 9.1*tree.alpha.len() as f32
                 + 9.4*tree.beta.len() as f32
                 - 2.5*tree.gamma.len() as f32
@@ -222,7 +237,7 @@ impl Molecule {
             let observed = tree.alpha.len();
             // adjust based on steric corrections
             for node in tree.alpha {
-                let degree = get_adjacent_nodes(node, &edges, atoms).len();
+                let degree = get_adjacent_carbons(node, &edges, atoms).len();
                 shift += steric_corrects[[observed, degree]];
             }
             // Add substiuent effects
@@ -239,8 +254,6 @@ fn test_assign_carbons() {
     assert_eq!(test.kind, vec![CarboxylicAcid, CN]);
 }
 
-// Internal helper functions
-
 /// Builds a tree of attached carbon atoms for each layer of chemical shift search
 /// atoms refered to by index in atoms vec
 // BUG removing edges will probably mess up cycles
@@ -255,30 +268,30 @@ fn build_tree(start: usize, structure: &Structure, atoms: &Vec<&str>)
     let mut epsilon: Vec<usize> = Vec::new();
     // END component vectors
 
-    alpha = get_adjacent_nodes(start, &edges, atoms);
+    alpha = get_adjacent_carbons(start, &edges, atoms);
     // pull out any edge that contains the root
     edges.retain(|(x, y)| *x != start && *y != start);
     // beta layer
     for node in alpha.iter() {
-        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        let mut temp = get_adjacent_carbons(*node, &edges, atoms);
         beta.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
     // gamma layer
     for node in beta.iter() {
-        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        let mut temp = get_adjacent_carbons(*node, &edges, atoms);
         gamma.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
     // delta level
     for node in gamma.iter() {
-        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        let mut temp = get_adjacent_carbons(*node, &edges, atoms);
         delta.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
     //epsilon level
     for node in delta.iter() {
-        let mut temp = get_adjacent_nodes(*node, &edges, atoms);
+        let mut temp = get_adjacent_carbons(*node, &edges, atoms);
         epsilon.append(&mut temp);
         edges.retain(|(x, y)| x != node && y != node);
     }
@@ -305,8 +318,8 @@ fn test_build_tree() {
     assert_eq!(test, answer);
     assert_eq!(test2, answer2);
 }
-// gets all adjacent carbon nodes from a base node
-fn get_adjacent_nodes(
+/// Gets all adjacent carbon nodes from a base node
+fn get_adjacent_carbons(
     base_node: usize, edges: &Vec<(usize, usize)>, atoms: &Vec<&str>)
 -> Vec<usize> {
     let mut ret = Vec::new();
@@ -319,7 +332,111 @@ fn get_adjacent_nodes(
     }
     ret
 }
+/// Retuns base shift for originating carbon for use in chemical shift calculation
+fn get_base(base_carbon: usize, structure: &Structure, atoms: &Vec<&str>) -> f32 {
+    unimplemented!();
+}
+/// Detects if rings are present in molecule
+/// Returns vector containing edges in ring if cycle is present
+/// Returns None if no rings(cycles) are presen
+/// Nodes contains nodes that are still possibilities for existing in a ring
+/// Singletons contains nodes that are not in a ring
+fn rings_present(structure: &Structure) -> Option<Vec<(usize, usize)>> {
+    let len = s_len(structure);
+    let mut nodes: Vec<usize> = Vec::new();
+    for i in 0..len { // TODO find better way to initialize this
+        nodes.push(i as usize);
+    }
+    let mut degree: Vec<usize> = vec![0; len];
+    let mut singletons: Vec<usize> = Vec::new();
+    let mut edge_list = edges(&structure);
 
+    while !nodes.is_empty() {
+        //find degree of each nodes
+        for (node1, node2) in edge_list.iter() {
+            degree[*node1] += 1;
+            degree[*node2] += 1;
+        }
+        if !degree.contains(&1) {
+            return Some(edge_list);
+        }
+        // Add nodes with degree of 1 to singtons vec, theyre not in the ring
+        for d in degree.iter().enumerate() { // TODO - can probably make this for loop to an iter
+            if *d.1 == 1 {
+                singletons.push(d.0);
+            }
+        }
+        nodes.retain(|node1| !singletons.contains(node1));
+        edge_list.retain(|(node1,node2)| !singletons.contains(node1) && !singletons.contains(node2));
+        degree = vec![0; len];
+    }
+    None
+}
+#[test]
+fn test_rings_present() {
+    let chrom1: Chromosome = vec![1,0,0,0,1,0,0,1,1,0];
+    let test1 = chromosome_to_structure(&chrom1);
+    let chrom2: Chromosome = vec![1,0,0,1,1,1,1,0,0,0,0,0,0,0,1];
+    let test2 = chromosome_to_structure(&chrom2);
+    assert_eq!(rings_present(&test1), None);
+    assert_eq!(rings_present(&test2), Some(vec![(0,4),(0,5),(4,5)]));
+}
+/// Finds the number of rings within a molcule and elucidates specific members of each ring
+fn elucidate_rings(edges: &Vec<(usize, usize)>) -> Vec<Vec<usize>> {
+    let mut components = 0;
+    let mut nodes = Vec::new();
+    let mut ret = Vec::new();
+    for (a, b) in edges.iter() {
+        nodes.push(*a);
+        nodes.push(*b);
+    }
+    nodes.sort();
+    nodes.dedup();
+
+    let len = nodes.len();
+    let mut marks: Vec<usize> = vec![0; len];
+    let mut processing: Vec<usize> = Vec::new();
+    let mut processed = HashSet::new();
+    let mut v;
+    for i in 0..len {
+        if marks[i] == 0 {
+            components += 1;
+            processing.push(nodes[i]);
+            while !processing.is_empty() {
+                v = processing.pop().unwrap();
+                if processed.contains(&v) {
+                    continue;
+                }
+                processed.insert(v);
+                marks[nodes.iter().position(|&x| x == v).unwrap()] += components;
+                //find adjacent edges
+                for (n1, n2) in edges.iter() {
+                    if *n1 == v && !processed.contains(n2) {
+                        processing.push(*n2);
+                    } else if *n2 == v && !processed.contains(n1) {
+                        processing.push(*n1);
+                    }
+                }
+            }
+        }
+    }
+    for i in 1..components+1 {
+        let mut temp = Vec::new();
+        for index in 0..len {
+            if marks[index] == i {
+                temp.push(nodes[index]);
+            }
+        }
+        ret.push(temp);
+    }
+    ret
+}
+#[test]
+fn test_elucidate_rings() {
+    let edges = vec![(1,2), (1,3), (2, 3), (5, 6), (5, 8),(6, 7), (7, 8)];
+    let answer = vec![vec![1, 2, 3], vec![5, 6,7, 8]];
+    assert_eq!(elucidate_rings(&edges), answer);
+}
 /// Returns the length of a Structure.
 /// As all Structures are square matrices either dimension can be returned
 fn s_len(s: &Structure) -> usize {
@@ -459,12 +576,10 @@ fn test_check_bonds_panic() {
     assert!(check_bonds(&test, &atoms));
 }
 
-// Randomly creates sample molecule
-// Needs tests for appropriate number of bonds and connectedness
-// A chromosome is the concatenation of the values from the upper
-// triangle exluding the diagonal
+/// Randomly creates sample molecule with no guarantee of validity
+/// A chromosome is the concatenation of the values from the upper
+/// triangle exluding the diagonal
 // TODO This algorithm is super inefficient find better way to generate graph
-// most failures are in bonding checks
 pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (u32, u32)) -> Molecule {
     let mut rng = thread_rng();
     let l = atoms.len();
@@ -485,7 +600,7 @@ pub fn create_test_molecule(atoms: &Vec<&str>, bonds: (u32, u32)) -> Molecule {
 }
 
 /// Reduce moleculer structure to eliminate double/triple bonds
-pub fn reduce_structure(structure: &Structure) -> Structure {
+fn reduce_structure(structure: &Structure) -> Structure {
     let len = s_len(structure);
     let mut reduced = Structure::zeros((len, len));
     for i in 0..len {
@@ -504,7 +619,7 @@ fn test_reduce_structure() {
 }
 /// Transforms an adjacency matrix into an edge list
 /// The lower triangle is excluded as it is a mirror of the upper triangle
-pub fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
+fn edges(structure: &Structure) -> (Vec<(usize, usize)>) {
     let mut ret: Vec<(usize, usize)> = Vec::new();
     let len = s_len(structure);
     for i in 0..len {
@@ -523,57 +638,12 @@ fn test_edges() {
     assert_eq!(edges(&chromosome_to_structure(&vec![1,1,1])), vec![(0,1), (0,2), (1,2)]);
 }
 
-/// Detects if rings are present in molecule
-/// Returns None if no rings are present
-/// Returns vector containing carbons in ring if cycle is present
-/// or None if no rings(cycles) are present
-/// Nodes contains nodes that are still possibilities for existing in a ring
-/// Singletons contains nodes that are not in a ring
-pub fn rings_present(structure: &Structure) -> Option<Vec<(usize, usize)>> {
-    let len = s_len(structure);
-    let mut nodes: Vec<usize> = Vec::new();
-    for i in 0..len { // TODO find better way to initialize this
-        nodes.push(i as usize);
-    }
-    let mut degree: Vec<usize> = vec![0; len];
-    let mut singletons: Vec<usize> = Vec::new();
-    let mut edge_list = edges(&structure);
-
-    while !nodes.is_empty() {
-        //find degree of each nodes
-        for (node1, node2) in edge_list.iter() {
-            degree[*node1] += 1;
-            degree[*node2] += 1;
-        }
-        if !degree.contains(&1) {
-            return Some(edge_list);
-        }
-        // Add nodes with degree of 1 to singtons vec, theyre not in the ring
-        for d in degree.iter().enumerate() { // TODO - can probably make this for loop to an iter
-            if *d.1 == 1 {
-                singletons.push(d.0);
-            }
-        }
-        nodes.retain(|node1| !singletons.contains(node1));
-        edge_list.retain(|(node1,node2)| !singletons.contains(node1) && !singletons.contains(node2));
-        degree = vec![0; len];
-    }
-    None
-}
-#[test]
-fn test_rings_present() {
-    let chrom1: Chromosome = vec![1,0,0,0,1,0,0,1,1,0];
-    let test1 = chromosome_to_structure(&chrom1);
-    let chrom2: Chromosome = vec![1,0,0,1,1,1,1,0,0,0,0,0,0,0,1];
-    let test2 = chromosome_to_structure(&chrom2);
-    assert_eq!(rings_present(&test1), None);
-    assert_eq!(rings_present(&test2), Some(vec![(0,4),(0,5),(4,5)]));
-}
-
 /// Generates new child generation from parent population
 /// Keeps best half of parent population and recombines parents to form children
 /// Returns child population
-pub fn generate_children(mut population:Vec<Molecule>, atoms: &Vec<&str>, num_bonds: u32) -> Vec<Molecule> {
+pub fn generate_children(mut population:Vec<Molecule>,
+        atoms: &Vec<&str>, num_bonds: u32)
+    -> Vec<Molecule> {
     let mut children: Vec<Molecule> = Vec::new();
     let mut rng = thread_rng();
     // sort population
@@ -604,34 +674,34 @@ fn test_generate_children() {
     let mut runs = 0;
     let mut con_cnt = 0;
     let mut bnd_cnt = 0;
-    while t_pop < POPULATION {
-        let t_con: bool;
-        let t_bnd: bool;
-        t_runs += 1;
-        if t_runs > 1000000 {
+    while pop < POPULATION {
+        let con: bool;
+        let bnd: bool;
+        runs += 1;
+        if runs > 100000 {
             println!("Failed bonds: {}", bnd_cnt);
             println!("Failed connection: {}", con_cnt);
             panic!("creation stuck in loop");
         }
-        let mol = create_test_molecule(&t_atoms, t_bonds);
-        t_bnd = check_bonds(&mol.structure, &t_atoms);
-        t_con = connected(&mol.structure);
-        if !t_bnd {
+        let mol = create_test_molecule(&atoms, bonds);
+        bnd = check_bonds(&mol.structure, &atoms);
+        con = connected(&mol.structure);
+        if !bnd {
             bnd_cnt += 1;
         }
-        if !t_con {
+        if !con {
             con_cnt += 1;
         }
-        if t_bnd && t_con {
-            t_population.push(mol);
-            t_pop += 1;
+        if bnd && con {
+            population.push(mol);
+            pop += 1;
         }
     }
-    let new_pop = generate_children(t_population, &t_atoms, t_bonds.1);
+    let new_pop = generate_children(population, &atoms, bonds.1);
     assert_eq!(new_pop.len(), POPULATION);
     for p in new_pop {
         assert!(connected(&p.structure));
-        assert!(check_bonds(&p.structure, &t_atoms));
+        assert!(check_bonds(&p.structure, &atoms));
     }
 }
 
@@ -671,7 +741,7 @@ pub fn recombine(p1: &Molecule, p2: &Molecule, atoms: &Vec<&str>, num_bonds: u32
     Molecule::new(chromosome_to_structure(&child))
 }
 /// Mutates a random single bond in a molecule
-pub fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: u32) {
+fn mutate_child(chromosome: &mut Chromosome, atoms: &Vec<&str>, num_bonds: u32) {
     let mut rng = thread_rng();
     let l = chromosome.len();
     let mut gene_1;
@@ -710,7 +780,7 @@ fn validate_chromosome(chromosome: &Chromosome, atoms: &Vec<&str>, num_bonds: u3
 }
 
 /// Returns the maximum number of bonds a given element can have
-pub fn match_element(element: &str) -> u32 {
+fn match_element(element: &str) -> u32 {
     match element {
         "C" => 4,
         "O" => 2,
@@ -720,7 +790,7 @@ pub fn match_element(element: &str) -> u32 {
     }
 }
 /// Correct a chromosome such that it posesses the correct number of bonds
-pub fn correct_child(child: &mut Chromosome, parent0: &Chromosome, parent1: &Chromosome, num_bonds: u32) {
+fn correct_child(child: &mut Chromosome, parent0: &Chromosome, parent1: &Chromosome, num_bonds: u32) {
     let mut rng = thread_rng();
     let mut r;
     let len = child.len();

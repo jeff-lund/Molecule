@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 const DEBUG: bool = true;
+const MAX_GENERATIONS: u32 = 200;
 
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
@@ -33,27 +34,29 @@ fn main() -> std::io::Result<()> {
     if DEBUG == false {
         // Generate random molecule population
         let mut population: Vec<Molecule> = Vec::new();
-        let pop = 0;
+        let mut pop = 0;
         while pop < POPULATION {
             let molecule = create_test_molecule(&atoms, bonds);
-            if connected(&molecule.structure) && check_bonds((&molecule.structure, &atoms)) {
+            if connected(&molecule.structure) && check_bonds(&molecule.structure, &atoms) {
                 population.push(molecule);
                 pop += 1;
             }
         }
         // START evolution
-        // calculate chemical shifts
-        for molecule in population {
-            
+        let best: Molecule;
+        for _ in 0..MAX_GENERATIONS {
+            // calculate chemical shifts
+            // calculate molecules fitness
+            for molecule in population.iter_mut() {
+                molecule.assign_carbons(&atoms);
+                molecule.fitness(&peaks);
+            }
+            // check break condition
+
+            // Create new population from parent generation
+            population = generate_children(population, &atoms, bonds.1)
+            // END evolution
         }
-        // calculate molecules fitness
-
-        // Create new population from parent generation
-
-
-        // randomly mutate new children
-
-        // END evolution
     }
     if DEBUG == true {
         // DEBUG PRINTING REMOVE LATER
@@ -74,6 +77,7 @@ fn main() -> std::io::Result<()> {
         let mut fbond = 0;
         let mut failed_both = 0;
         let mut pop = 0;
+        let mut population = Vec::new();
         while pop < POPULATION {
             let m = create_test_molecule(&atoms, bonds);
             let mut bond_flag = 0;
