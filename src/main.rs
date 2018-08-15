@@ -11,9 +11,9 @@ use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 const MAX_GENERATIONS: u32 = 200;
-fn pprint (molecule: &Molecule, atoms: &Vec<&str>) {
+fn pprint (molecule: &Molecule, atoms: &Vec<&str>, peaks: &Vec<f32>) {
     for a in atoms {
         print!("|{} ", a);
     }
@@ -30,6 +30,11 @@ fn pprint (molecule: &Molecule, atoms: &Vec<&str>) {
     println!("");
     print!("Chemical Shifts: {}", molecule.chemical_shifts[0]);
     for entry in molecule.chemical_shifts.iter().skip(1) {
+        print!(", {}", entry);
+    }
+    println!("");
+    print!("Experimental Chemical Shifts: {}", peaks[0]);
+    for entry in peaks.iter().skip(1) {
         print!(", {}", entry);
     }
     println!("");
@@ -84,7 +89,7 @@ fn main() -> std::io::Result<()> {
             // END evolution
         }
         println!("Best fit found");
-        pprint(&best_molecule, &atoms);
+        pprint(&best_molecule, &atoms, &peaks);
     }
     if DEBUG == true {
         // DEBUG PRINTING

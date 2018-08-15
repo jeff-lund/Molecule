@@ -52,8 +52,8 @@ H--C(1)--C(0)--O(3)--H
 ```
 
 ## Chemical Shift Calculation
-For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;...  
-The chemical shift of **C** &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
+For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;-C&#948;-C&#949;...  
+The chemical shift of **C** for alkanes: &#948;C = -2.3 + 9.1&#945; + 9.4&#946; - 2.5&#947; + 0.3&#948; + 0.1&#949; + &#931; (steric corrections) ppm
 
 ### Steric corrections
 | Carbon Atom Observed | Primary | Secondary | Tertiary | Quaternary |
