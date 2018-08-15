@@ -35,12 +35,12 @@ The output best fit molecule is represented as an adjacency matrix
 with the row/columns matched with the element in the `atoms` array at the corresponding index.  
 Hydrogens are filled in where appropriate and not explicitly referred to in the adjacency matrix.  
 For Acetic Acid `C2H4O2`:  
-|C(0)|C(1)|O(2)|O(3)|
-|----|:--:|:--:|---:|
-| 0  | 1  | 2  | 1  |
-| 1  | 0  | 0  | 0  |
-| 2  | 0  | 0  | 0  |
-| 1  | 0  | 0  | 0  |
+|C(0)|C(1)|O(2)|O(3)|  
+|----|:--:|:--:|---:|  
+| 0  | 1  | 2  | 1  |  
+| 1  | 0  | 0  | 0  |  
+| 2  | 0  | 0  | 0  |  
+| 1  | 0  | 0  | 0  |  
 
 Molecular Representation:
 ```
