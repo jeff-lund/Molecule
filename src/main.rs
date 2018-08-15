@@ -11,7 +11,7 @@ use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 const MAX_GENERATIONS: u32 = 200;
 fn pprint (molecule: &Molecule, atoms: &Vec<&str>) {
     for a in atoms {
