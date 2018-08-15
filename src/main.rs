@@ -11,8 +11,29 @@ use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 const MAX_GENERATIONS: u32 = 200;
+fn pprint (molecule: &Molecule, atoms: &Vec<&str>) {
+    for a in atoms {
+        print!("|{} ", a);
+    }
+    println!("|");
+    for row in molecule.structure.genrows() {
+        println!("{}", row);
+    }
+    println!("");
+    println!("Fitness: {}", molecule.fitness);
+    print!("Carbon Assignments: {:?}", molecule.kind[0]);
+    for entry in molecule.kind.iter().skip(1) {
+        print!(", {:?}", entry);
+    }
+    println!("");
+    print!("Chemical Shifts: {}", molecule.chemical_shifts[0]);
+    for entry in molecule.chemical_shifts.iter().skip(1) {
+        print!(", {}", entry);
+    }
+    println!("");
+}
 
 fn main() -> std::io::Result<()> {
     // Read file from std::args to buffer
@@ -63,11 +84,7 @@ fn main() -> std::io::Result<()> {
             // END evolution
         }
         println!("Best fit found");
-        println!("Atoms for reference: {:?}", atoms);
-        println!("{:?}", best_molecule.structure);
-        println!("{:?}", best_molecule.kind);
-        println!("{:?}", best_molecule.chemical_shifts);
-        println!("Fitness: {}", best_molecule.fitness);
+        pprint(&best_molecule, &atoms);
     }
     if DEBUG == true {
         // DEBUG PRINTING REMOVE LATER

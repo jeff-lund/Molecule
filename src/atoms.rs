@@ -212,46 +212,13 @@ impl Molecule {
             [0.0, -8.4, -10.0, -12.5]]);
         let num_carbons = atoms.iter().filter(|&c| *c == "C").count();
         let edges = edges(&self.structure);
-        // Ring Detection
-        let rings: Vec<Vec<usize>>;
-        let ring_nodes: HashMap::new();
-        match rings_present(&self.structure) {
-            Some(t) => {
-                let rings_present = true;
-                rings = elucidate_rings(&t);
-                for (n1, n2) in t {
-                    ring_nodes.insert(*n1);
-                    ring_nodes.insert(*n2);
-                }
-            }
-            None => {
-                let rings_present = false;
-                rings = Vec::new();
-                ring_nodes = Vec::new();
-            }
-        }
-
         // START delta-C assignment
         for i  in 0..num_carbons {
             let mut shift = 0.0;
-            let mut linear = false;
+            let mut linear = true;
             let mut alkane = false;
             let mut aromatic = false;
-            let current_ring;
-            if !rings_present {
-                linear = true;
-            } else {
-                if ring_nodes.contains(i) {
-                    for r in rings.iter() {
-                        if r.contains(&i) {
-                            current_ring = r.clone();
-                        }
-                    }
-                } else {
-                    linear = true;
-                }
-            }
-            // Linear and brancher alkane
+            // Linear and branched alkane
             if linear {
                 let tree = build_tree(i, &self.structure, atoms);
                 shift = -2.3
@@ -268,11 +235,8 @@ impl Molecule {
                 }
                 // Add substiuent effects
             }
-            // linear and brancher alkenes
-
+            // linear and branched alkenes
             // aromatic rings
-
-            // Ring effects?
             self.chemical_shifts.push(shift);
         }
         // END delta-C assignment
@@ -387,6 +351,8 @@ fn test_is_benzene() {
 /// Returns None if no rings(cycles) are presen
 /// Nodes contains nodes that are still possibilities for existing in a ring
 /// Singletons contains nodes that are not in a ring
+// BUG this doesn't actually work for how rings_present returns values
+// TODO need to find hamiltonian paths within cycle
 fn rings_present(structure: &Structure) -> Option<Vec<(usize, usize)>> {
     let len = s_len(structure);
     let mut nodes: Vec<usize> = Vec::new();

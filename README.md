@@ -10,7 +10,7 @@ cargo build
 ```
 
 Molecule is run from the command line on a file. Samples files are included in the
-`test_files` directory with sub-directories for expected runtimes.
+`test_files` directory.
 ```
 cargo run test_files/short/acetic_acid.txt
 ```
