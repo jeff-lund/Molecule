@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
         pprint(&best_molecule, &atoms);
     }
     if DEBUG == true {
-        // DEBUG PRINTING REMOVE LATER
+        // DEBUG PRINTING
         println!("********************DEBUG*************************************");
         println!("{:?}", atoms);
         println!("IHD {}", ihd);

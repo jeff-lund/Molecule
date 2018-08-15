@@ -1,6 +1,10 @@
 # Molecule
 A C13 NMR interpreter written in Rust. From an input file containing a chemical formula and chemical shifts a genetic algorithm is used to find the interpreted structure.
 
+Inspired by the Genius genetic algorithim.  
+[Genius: A genetic algorithm for automated structure elucidation from (super13)C NMR specrta. Jens Meiler, Will Martin.](https://pubs.acs.org/doi/abs/10.1021/ja0109388)
+
+
 ## Getting Started
 Molecule uses the [standard cargo building process](https://doc.rust-lang.org/cargo/guide/working-on-an-existing-project.html).
 ```sh
@@ -26,6 +30,26 @@ will not recognize the lone Oxygen.
 Elements are limited to C, H, O, N, Cl, Br
 
 Unit tests are run with `Cargo test`
+
+The output best fit molecule is represented as an adjacency matrix
+with the row/columns matched with the element in the `atoms` array at the corresponding index.  
+Hydrogens are filled in where appropriate and not explicitly referred to in the adjacency matrix.  
+For Acetic Acid `C2H4O2`:  
+|C(0)|C(1)|O(2)|O(3)|
+|----|:--:|:--:|---:|
+| 0  | 1  | 2  | 1  |
+| 1  | 0  | 0  | 0  |
+| 2  | 0  | 0  | 0  |
+| 1  | 0  | 0  | 0  |
+
+Molecular Representation:
+```
+    H    O(2)
+    |     ||
+H--C(1)--C(0)--O(3)--H
+    |  
+    H
+```
 
 ## Chemical Shift Calculation
 For a molecule chain ...C&#949;-C&#948;-C&#947;-C&#946;-C&#945;-**C**-C&#945;-C&#946;-C&#947;C&#948;-C&#949;...  
